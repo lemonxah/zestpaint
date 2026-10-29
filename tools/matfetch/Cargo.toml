@@ -2,6 +2,8 @@
 name = "matfetch"
 version = "0.1.0"
 edition = "2024"
+license = "GPL-3.0-or-later"
+authors = ["Ryno Kotze <lemon.xah@gmail.com>"]
 description = "Sync and download CC0 PBR materials and brush stamps from Poly Haven and ambientCG"
 
 [dependencies]

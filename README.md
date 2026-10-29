@@ -1,322 +1,333 @@
 # ZestPaint
 
-A 3D texture-painting app in the spirit of Substance Painter, built from scratch
-in Rust on Vulkan (via [vulkano]) with an [egui] interface.
+ZestPaint is a 3D texture-painting app in the spirit of Adobe Substance 3D
+Painter. It is written from scratch in Rust on Vulkan (through [vulkano]),
+with an [egui] interface, and runs natively on Linux.
 
-## Current features
+It is a tool for **texturing 3D models**. You load a model (FBX or glTF),
+paint PBR channels straight onto it in a layer stack with masks, bake mesh
+maps, generate smart masks, and export texture maps for a game engine or
+renderer. It handles models made of dozens of pieces and materials. On top
+of that it has a studio for posing and rendering rigged characters, masks
+for toon shaders, a built-in AI assistant, and an MCP server so Claude Code
+can drive the editor.
 
-- **Two viewport modes** — real-time raster, or a progressive **path-traced
-  preview** (compute shader over a CPU-built BVH: metal/rough GGX with the
-  painted channels and normal maps, environment and studio lights with
-  soft shadows, multiple bounces). Painting happens in raster mode.
-- **Studio: pose, light and render the avatar** (View ▸ Studio, F10) —
-  rigged FBX/glTF models keep their skeleton and skin weights, and can be
-  posed: built-in photography poses (contrapposto, hands on hips, arms
-  crossed, wave, look over the shoulder, walking, sitting, …), any frame of
-  an animation file (Mixamo FBX, Quaternius glTF/GLB, CMU BVH mocap), or
-  poses you saved, with per-bone nod/turn/tilt adjustments and mirroring.
-  Bones are matched by name and place in the hierarchy (Mixamo, Unity/CATS,
-  Unreal, VRoid, Daz names all map), and poses retarget across rest poses (a
-  T-pose clip on an A-pose avatar) and facing. Light with classic setups
-  (three-point, Rembrandt, butterfly, split, rim, soft box) of soft round
-  lights placed around the subject; stand it on a floor or a studio sweep;
-  show the environment, a colour (chroma green/blue) or nothing behind it.
-  The Camera tab sets the focal length and depth of field. **Render (F12)**
-  traces a still at any size and sample count, shows it, and saves it as
-  PNG; with a transparent background it has alpha, so only the avatar (and
-  optionally its shadow on the floor, a shadow catcher) is in the image, to
-  place over a background later. The pose and the studio are saved in the
-  project.
+![Workspace](docs/zestpaint-ui-handover/screens/01-workspace-paint-tool.png)
 
-- **PBR viewport** — Cook-Torrance GGX metallic-roughness shading with
-  image-based lighting (irradiance + GGX-prefiltered specular cubemaps),
-  ACES tone mapping, and a skybox background, extended with OpenPBR-style
-  surface slots: clear coat, sheen, emission, and specular weight per
-  material (a pragmatic subset of the OpenPBR 1.1 slot set, not a certified
-  implementation).
-- **Environments** — built-in procedural sky; load any equirectangular `.hdr`
-  and it is convolved into IBL cubemaps on the GPU at load time.
-- **Model loading** — `.gltf` / `.glb` (node hierarchies, per-primitive
-  materials, base color textures) and `.fbx` via [ufbx] (any FBX version,
-  units/axes normalized, polygons triangulated, base-color textures imported
-  whether embedded in the file or referenced on disk). The camera auto-frames
-  loaded models.
-- **Texture sets per material** — Substance-style: the paint target is a
-  *material*, not an object. The left panel shows a tree of objects with
-  their materials (an FBX body mesh with Body/Face/Eyes materials becomes
-  three independent sets, each with its own layers, maps, and bakes). Select
-  a material to paint just its faces; eyes on both levels show/hide a whole
-  object or a single material (hidden geometry is also skipped by painting
-  and AO baking).
-- **Material maps** — every material has six file-loadable slots: base
-  color, roughness, metallic, normal, height, and AO. FBX and glTF imports
-  fill them automatically where the source file provides them (including
-  glTF's packed metallic-roughness, which is split); any slot can be
-  replaced or removed from an image file in the Material section. Height
-  maps auto-derive a normal map when no explicit normal map is present, and
-  material AO multiplies with baked AO.
-- **Projection painting** — screen-space brush stamps are projected onto the
-  mesh and rasterized in UV space into the active layer, with depth-occlusion
-  and backface rejection so you can't paint through the model. Size, hardness,
-  flow, loadable grayscale **brush tips**, and **X-symmetry** mirroring.
-  Paints base color, roughness, metallic, height, **emissive**, and
-  **opacity** channels independently or together.
-- **Transparency** — per-material opacity and a "Transparent (alpha blend)"
-  flag (auto-detected from FBX transparency and glTF `alphaMode: BLEND`).
-  Transparent materials render in a sorted back-to-front blended pass over
-  the skybox with depth writes off; opaque materials treat low alpha as a
-  cutout. Final alpha = material opacity × base-color texture alpha ×
-  painted opacity.
-- **Height & normal painting** — a signed height channel (raise or carve) per
-  layer; a compute pass derives a tangent-space normal map from the composited
-  height (Sobel), applied in the shader via a derivative-based tangent frame.
-  "Bump strength" controls the gradient scale.
-- **Layer stack** — multiple layers with visibility, opacity, and blend modes
-  (Normal / Multiply / Add), flattened by a GPU compositor each time something
-  changes. Painted layers composite over the model's own material.
-- **AO baking** — GPU baker that renders scene depth from 64 fibonacci-sphere
-  directions and accumulates cosine-weighted visibility per texel, one AO map
-  per texture set (the whole scene occludes, so clothes shadow the body); the
-  result attenuates the environment lighting (strength slider) and exports.
-- **UV tools** — auto-unwrap via [xatlas] targets only the active texture
-  set: that one object gets a fresh full-resolution atlas (fixing bad or
-  overlapping UVs) while every other sub-model's UVs, paint, and bakes stay
-  untouched. A UV checker debug view helps judge texel density and seams.
-- **Undo history** — Ctrl+Z / Ctrl+Shift+Z step through one history for the
-  whole document: strokes (pixel snapshots of just the channels touched,
-  within a RAM budget) interleaved with every other edit, which is caught by
-  diffing a cheap per-frame document snapshot — a slider drag or a typed name
-  is one step.
-- **Smart masks & fill layers** — bake mesh maps (world position, normal,
-  curvature), then generate edge-wear or cavity-dirt masks per layer with
-  amount/contrast controls; "Fill from brush values" floods a layer so a
-  fill + mask behaves like a simple smart material.
-- **Projected fills** — fill layers (library materials, or any image via
-  Layers ▸ + Fill, or Projection ▸ Fill with image…) can ignore the UVs and wrap onto the model:
-  triplanar (seamless on most shapes), spherical (one 2:1 image around a
-  ball), cylindrical (labels on cans) or planar, aimed along X/Y/Z, with the
-  usual tiling/offset/rotation on top. The Place tool (P) moves, turns and
-  sizes the projection right on the model. Mesh maps bake automatically the
-  first time a projection is picked.
-- **UDIM** — multi-tile UVs split into one texture set per tile (1001, 1002,
-  …) at import, each painting at full resolution.
-- **Material library** — `~/.zestpaint/library/materials/<name>/` folders of
-  maps (ambientCG / Poly Haven naming) can be applied to any material or
-  saved back from the current material.
-- **Export** — flattens every texture set and writes its maps under one
-  name you type (default: the project name): `<Name>_color.png` sRGB +
-  coverage alpha, `_roughness` / `_metallic` / `_opacity` grayscale +
-  coverage alpha, `_height` 0.5-neutral grayscale, `_normals`
-  tangent-space, `_emission`, `_ao` when baked, and shader masks as
-  `_matcap_mask`, `_emission_mask`… With several texture sets the material
-  is added (`<Name>_<Material>_color.png`), and the object too when two
-  sets share a material name.
-  The export dialog can also write **each layer on its own**
-  (`<Name>_L03_<Layer>_<map>.png`, coverage in alpha, so Import
-  maps brings it back as a layer) and **each layer mask** (`…_mask.png`,
-  greyscale), for all, visible or selected layers — with presets for
-  Layers only, Masks only and Everything. Right-click a layer to export just
-  that layer or its mask; Layer ▸ Load mask from image… reads a mask back.
-- **Project files** (`.zestpaint`) — File ▸ Save project (Ctrl S), Save as
-  (Ctrl Shift S), Open project (Ctrl Shift O), Open recent. A project holds
-  everything needed to carry on painting: meshes (with any re-unwrapped UVs),
-  material maps and sliders, every layer with all its settings, masks, shader
-  masks, baked AO/position/normal/curvature, camera and lighting, the
-  skeleton and skin weights, the pose and the studio. Layer data
-  is stored losslessly as raw half floats in a zip; empty channels take no
-  space. `zestpaint file.zestpaint` opens one from the command line.
+---
+
+## How it is like Substance Painter
+
+If you know Substance Painter, most of ZestPaint will feel familiar. The
+core workflow is the same:
+
+| Substance Painter | ZestPaint |
+| --- | --- |
+| **Texture sets** per material | Same. An FBX body mesh with Body / Face / Eyes materials becomes three independent sets, each with its own layers, bakes and resolution. |
+| **Layer stack** of paint and fill layers | Paint layers and fill layers with opacity, blend modes, masks, duplicate / merge / reorder. |
+| **Fill layer + black mask** to paint a material in | Applying a library material creates a fill layer with a black mask and switches the brush to mask mode. |
+| **Channels**: base colour, roughness, metallic, height, normal, emissive, opacity | Same channels. Height derives a normal map automatically, and it blends with any normal map in the stack. |
+| **Projection painting** with symmetry | Screen-space brush projected onto the mesh with depth occlusion and backface rejection, so you can't paint through the model. X-symmetry, brush tips, stamps, line strokes. |
+| **Mesh-map baking**: AO, curvature, position, world normal | Same four bakers, on the GPU. The whole scene occludes AO, so clothes shadow the body. |
+| **Smart masks** (edge wear, dirt) | Edge-wear and cavity-dirt generators per layer, with amount and contrast. |
+| **Tri-planar / projected fills** | Triplanar, planar, spherical and cylindrical projections, with a Place tool (P) to move, turn and size them on the model. |
+| **Clone, smudge, eraser, colour picker, polygon fill** | All present, plus fill by triangle, UV island or whole piece (the last one is a paint bucket). |
+| **Iray** path-traced viewport | A progressive compute path tracer you can toggle in the viewport. |
+| **UDIM** | Multi-tile UVs split into one texture set per tile at import. |
+| **Shelf** of materials and brushes | Material and brush library window, with tags, search and thumbnails. |
+| **Export** with naming per map and per set | Export dialog with map, set and size choices, presets, and per-layer / per-mask export. |
+| **Project file** | `.zestpaint` project files that store everything needed to keep painting. |
+
+---
+
+## How it differs from Substance Painter
+
+### What ZestPaint adds or does differently
+
+- **Free and open source (GPLv3), Linux-native.** No subscription and no
+  account. It is a Rust + Vulkan app you build yourself.
+- **Built for models with many parts.**
+  - **Piece management with Blender keys** for models with 90+ pieces: click
+    to select, H / Shift H / Alt H to hide, `/` for local view, F to frame.
+    Hidden pieces don't block painting or baking, so you can isolate one
+    part and paint what is underneath it.
+  - **Per-set resolution** from 1K to 8K, with a GPU-memory estimate, so a
+    small UV area that needs fine detail can get more texels.
+- **Toon-shader masks.** Shader-mask layers for stylised shaders such as
+  Poiyomi and lilToon: Emission, Matcap, Rim light, Outline, Shadow,
+  Specular, Glitter, Detail, Dissolve, AudioLink and Custom masks. You paint
+  them like any other layer, and they export as `<name>_matcap_mask.png`,
+  `_rim_light_mask.png` and so on. **Matcap layers** preview matcaps in the
+  viewport, using 15 built-ins or any matcap image.
+- **Studio: posing, lighting and rendering** (F10 / F12). Rigged models
+  keep their skeleton. Pose them with built-in photography poses, any frame
+  of a Mixamo / glTF / BVH animation, or saved poses. Light them with classic
+  portrait setups, put them on a studio sweep, and render a path-traced PNG,
+  optionally with a transparent background and shadow catcher. Bone names
+  from Mixamo, Unity/CATS, Unreal, VRoid and Daz are mapped automatically,
+  and poses retarget between T-pose and A-pose rigs.
+- **AI assistant built in** (F9). It chats with Claude or Gemini, can see the
+  viewport, and has tools to set up layers, materials, brushes, masks and
+  stamps. It can design a tattoo as SVG or generate one as an image (Nano
+  Banana or your own local ComfyUI), find CC0 materials and download them,
+  and make splatter / blood brushes. See [AI assistant](#ai-assistant) below.
+- **Claude Code integration.** The running app is also an MCP server, so
+  Claude Code can drive it with the same tools. See
+  [Claude Code (MCP)](#claude-code-mcp).
+- **Photoshop-style layer features:** 17 blend modes (Normal, Multiply,
+  Screen, Overlay, Soft/Hard Light, Dodge/Burn, Difference, Hue, Colour,
+  Luminosity…), clipping layers, mask on/off, mask from another layer's
+  coverage, merge down (Ctrl E).
+- **Imports GIMP and Photoshop brushes** (`.gbr`, `.gih`, `.abr`) and plain
+  images as brush tips and stamps.
+- **CC0 asset tooling.** The bundled `matfetch` tool mirrors ambientCG and
+  Poly Haven into a local library, and generates procedural assets that
+  aren't available in CC0: lace, tulle, stitches, zippers, grommets, snaps
+  and splatter stamps.
+- **One undo history for the whole document.** Strokes, layer settings,
+  fills, bakes, visibility, material slots and UV unwraps are all undoable,
+  limited by a RAM budget rather than a fixed step count.
+- **Open project format:** a `.zestpaint` file is a zip of a JSON manifest,
+  meshes, and raw half-float textures.
+- **Built-in UV auto-unwrap** ([xatlas]) for one texture set at a time,
+  for models with missing or overlapping UVs.
+
+### What Substance Painter has that ZestPaint doesn't (yet)
+
+- **No procedural Substance materials.** There's no node graph and no
+  `.sbsar` support. Materials are bitmap texture folders (ambientCG / Poly
+  Haven style), and "smart materials" are a fill layer plus a generated mask.
+- **No pen pressure** yet, no layer folders/groups, no anchor points and no
+  particle brushes.
+- **Fewer bakers.** There's no thickness or ID baking, and no baking from a
+  high-poly mesh.
+- **Shading is an OpenPBR-style subset** (coat, sheen, emission, specular
+  weight). It has no transmission, subsurface, thin film or anisotropy. The
+  path tracer doesn't do coat, sheen, transmission or subsurface either.
+- **No engine export templates** (packed ORM, Unreal/Unity presets). It
+  exports one PNG per map.
+- Bakes and exports block the UI while they run.
+- Re-unwrapping a texture set resets that set's layers, because paint can't
+  survive a UV change.
+- Manual UV island editing is future work.
+
+---
+
+## Features in more detail
+
+- **Viewports:** real-time raster (Cook-Torrance GGX with image-based
+  lighting, ACES tone mapping, skybox) or a progressive path-traced
+  preview. Painting happens in raster mode.
+- **Environments:** a procedural sky, or any equirectangular `.hdr`
+  convolved into IBL cubemaps on the GPU. The key light can be steered.
+- **Model import:** `.fbx` through [ufbx] (any version; units and axes
+  normalised; embedded or on-disk textures) and `.gltf` / `.glb`. Base
+  colour, roughness, metallic, normal, height, AO, emission and opacity maps
+  are picked up where the file has them, and imported in the background.
+- **Material maps:** each material has file-loadable slots for base colour,
+  roughness, metallic, normal, height, AO and emission. Imported maps are
+  stored BC7/BC4/BC5-compressed with mipmaps to save VRAM.
+- **Transparency:** per-material opacity and alpha blending, detected from
+  FBX/glTF, drawn in a sorted back-to-front pass. Painted opacity
+  multiplies in.
+- **Tools:** Paint B, Erase E, Smudge G, Clone C (source anchored on the
+  model), Stamp T, Pick I, Place P, Select S, Orbit R.
+- **Brushes:** hard / soft / airbrush / chalk / spatter / bristle presets,
+  greyscale or colour tips, square stamps with rotation, Line and Stamp
+  stroke modes.
+- **Import maps as layers:** PNGs (including ZestPaint's own per-layer
+  exports) come back as new layers. Importing never disturbs existing
+  layers.
+- **VRAM-aware:** a layer only gets a texture for a channel once that
+  channel is painted. Hidden sets release their composites. The status bar
+  shows what the driver says ZestPaint holds, with a breakdown on hover.
 
 ## Interface
 
-The window follows one rule: **the left side is how you paint, the right side
-is what you paint into**, and the viewport only carries overlays about the
-view itself (see `docs/zestpaint-ui-handover/` for the design).
+**The left side is how you paint, and the right side is what you paint
+into.** The viewport only carries overlays about the view itself. The full
+design is in `docs/zestpaint-ui-handover/`.
 
-- **Menu bar** — File, Edit, View, Layer, Bake, Library, Window, Help, plus
-  **Ctrl K** command search over every command and the main panel settings.
-- **Context bar** — the active tool's options (Into Material/Mask, stroke,
-  size, hardness, flow, angle, symmetry, fill mode; clone source, stamp
-  image, Select's hide/isolate, Place's projection).
-- **Tool rail** — Paint B, Erase E, Smudge G, Clone C, Stamp T · Pick I,
-  Place P · Select S, Orbit R, and the current paint colour.
-- **Left dock** — brush tip and the built-in brushes (hard / medium / soft
-  round, airbrush, gaussian, chalk, spatter, bristle — also in the ⋯ menu),
-  paint channels (or the shader-mask box), bump strength, fill-mode info.
-- **Right dock** — texture sets, the layer stack (thumbnails, badges, drag
-  to reorder, double-click to rename, duplicate), and Layer / Mask /
-  Projection / Material property tabs.
-- **Viewport overlays** — breadcrumb, Raster/Path traced, view toggles, the
-  Display & lighting popover, axis gizmo, background-task cards and toasts.
-- **Library window** — one separate OS window with Materials and
-  Brushes & stamps tabs.
+- **Menu bar:** File, Edit, View, Layer, Bake, Library, Window, Help.
+  **Ctrl K** opens a command search.
+- **Context bar:** the active tool's options.
+- **Tool rail:** tools and the current paint colour.
+- **Left dock:** brush tip, presets and paint channels.
+- **Right dock:** texture sets, the layer stack, and Layer / Mask /
+  Projection / Material tabs.
+- **Library window:** a separate OS window with Materials and Brushes &
+  stamps tabs.
 
 | Input | Action |
 | --- | --- |
 | Brush tools: LMB drag | paint / erase / smudge / clone |
-| Alt + LMB drag | orbit (brush tools) |
+| Alt + LMB drag | orbit (while a brush tool is active) |
 | Orbit tool: LMB drag | orbit |
+| RMB / MMB drag | pan |
+| Scroll | zoom |
+| Ctrl+Scroll / Shift+Scroll | brush size / tip rotation (Place: size / spin) |
+| [ / ] (Shift: faster) | brush size down / up |
+| Ctrl+click (Clone) | set the clone source on the model |
+| Place tool: drag / Shift+drag | move / rotate the projection |
 | Select / Orbit tool: click, Shift+click | select a piece, add/remove it |
 | A, Alt A | select all visible pieces, deselect |
 | H, Shift H, Alt H | hide selection, hide others, unhide all |
 | / (main or numpad) | local view: isolate the selection and frame it; again to leave |
 | F (or numpad .), Home | frame selection, frame all |
-
-Each texture set has its own paint resolution (Texture sets panel ▸
-Resolution: 1K–8K, with a GPU-memory estimate; sizes that would overload the
-GPU are refused). Changing it resamples the layers and is undoable; projects
-save it per set.
-The status bar's VRAM readout is what the driver says ZestPaint holds; hover
-it for the breakdown (layer textures, set composites, imported maps, bakes…,
-and how much only undo still keeps). Memory is only spent where there is
-content: a layer gets a texture per channel when that channel is first
-painted, a set gets a full-size composite only for channels some layer uses,
-and imported maps are stored BC7/BC4/BC5-compressed with mipmaps. Large
-textures have their own GPU allocations, so freed memory goes straight back
-to the driver for other apps.
-Paint big, ship smaller: the Export dialog asks for the export size (as
-painted, or 4096/2048/1024/512) and downscales the PNGs (Lanczos,
-alpha-aware) without touching the document.
-| RMB / MMB drag | pan |
-| Scroll | zoom |
-| Ctrl+Scroll / Shift+Scroll | brush size / tip rotation (Place: size / spin) |
-| [ / ] (Shift: faster) | brush size down / up |
-| Place tool: drag / Shift+drag | move / rotate the projection |
 | Ctrl Z, Ctrl Shift Z (Ctrl Y) | undo / redo (any document edit) |
 | Ctrl O, Ctrl Shift I, Ctrl Shift E | open model, import maps, export maps |
 | Ctrl S, Ctrl Shift S, Ctrl Shift O | save project, save as, open project |
 | Ctrl Shift N, Ctrl J, F2, Del | new paint layer, duplicate, rename, delete |
-| Ctrl ] / Ctrl [ | move layer up / down |
+| Ctrl ] / Ctrl [, Ctrl E | move layer up / down, merge down |
 | M, Shift B | material / brush library |
 | F5–F8 | toggle Brush, Texture sets, Layers, Properties |
+| F9, F10, F12 | assistant, Studio window, render an image |
 | F1, Ctrl , | keyboard shortcuts, preferences |
-| F10, F12 | Studio window, render an image |
 
-## Startup and settings
+## Building and running
 
-Launched without a file, ZestPaint shows a welcome screen (Help ▸ Welcome
-screen brings it back): open a model or project, or pick a recent project.
-It can instead reopen the last project or go straight to the default sphere;
-choose on the welcome screen or in Preferences. `zestpaint file.zestpaint`
-always opens that file.
+```sh
+cargo run --release
+```
+
+You need a Vulkan-capable GPU and driver. The first build compiles the
+shaders through `vulkano-shaders`. To open a project from the command line,
+run `zestpaint file.zestpaint`.
+
+When it starts without a file, ZestPaint shows a welcome screen where you
+can open a model or project, or pick a recent one. In Preferences you can
+choose to reopen the last project or start on the default sphere instead.
+
+### Material and brush library
+
+Materials live in `~/.zestpaint/library/materials/<name>/` and brushes in
+`~/.zestpaint/library/brushes/`. The scanner understands ambientCG, Poly
+Haven and cgbookcase file naming. To fill the library:
+
+```sh
+cargo run -p matfetch -- --help
+```
+
+[ambientCG](https://ambientcg.com) and [Poly Haven](https://polyhaven.com)
+are the recommended CC0 sources. Poly Haven HDRIs also work with the
+environment loader. For poses, Studio ▸ Pose ▸ Import animation… accepts
+Mixamo FBX ("Without Skin"), Quaternius' CC0 animation libraries and CMU's
+BVH motion capture.
+
+### Settings
 
 Settings live in `~/.config/zestpaint/` (or `$XDG_CONFIG_HOME/zestpaint/`):
 
-- `settings.json`: `startup` (`"welcome"`, `"last_project"` or
-  `"default_scene"`) and `undo_budget_gb`; written with the defaults on first
-  launch, safe to edit by hand.
-- `assistant.json`, `comfy_workflow.json`, `recent_projects.json`,
-  `export_presets.json`, `hidden_pieces.json`, `mcp-bridge.json`: kept by their
-  features. Older versions kept these in `~/.zestpaint/`; they move over on the
-  first launch. The material and brush libraries stay in `~/.zestpaint/library/`,
-  and saved poses in `~/.zestpaint/library/poses/` (one JSON file each,
-  rig-neutral: they fit any humanoid).
+| File | Contents |
+| --- | --- |
+| `settings.json` | startup behaviour (`welcome`, `last_project`, `default_scene`) and `undo_budget_gb` |
+| `assistant.json` | assistant model, **API keys**, ComfyUI URL, MCP port and token. Owner-only (0600). |
+| `mcp-bridge.json` | port and token of the running app, for `zestpaint mcp`. Owner-only (0600). |
+| `comfy_workflow.json` | optional ComfyUI workflow override for image generation |
+| `recent_projects.json`, `export_presets.json`, `hidden_pieces.json` | kept by their features |
 
-Poses to import (Studio ▸ Pose ▸ Import animation…): Mixamo (free with an
-Adobe account; download as FBX "Without Skin"; usable in your own work but
-not redistributable), Quaternius' Universal Animation Library 1 and 2 (CC0,
-glTF/FBX), CMU's motion capture library (BVH, free for any use). Scrub to
-the frame you want and save it as a pose.
+## AI assistant
 
-## Building
+Open it with F9 or the sparkles button on the right edge. It can use:
+
+- **Claude** (Opus 5.5 by default, with Sonnet / Haiku available) with an
+  Anthropic API key.
+- **Gemini** with a Google AI Studio key. Image generation ("Nano Banana")
+  needs billing enabled on that key.
+- **ComfyUI** on your own machine, for local image generation with no key.
+
+### API keys: keep them out of the repo
+
+Keys are **never stored in this repository**, and nothing in the repo
+should ever contain one. ZestPaint looks for keys in this order:
+
+1. The key field in the assistant's settings (gear icon). It is saved to
+   `~/.config/zestpaint/assistant.json` in your home directory with
+   owner-only permissions.
+2. Environment variables:
+   - Claude: `ANTHROPIC_API_KEY`
+   - Gemini: `GEMINI_API_KEY`, then `GOOGLE_API_KEY`
 
 ```sh
-cargo run
+# e.g. in your shell profile, not in a file inside this repo
+export GEMINI_API_KEY=...
 ```
 
-Requires a Vulkan-capable GPU and driver. First build compiles shaders through
-`vulkano-shaders`.
+Don't paste a key into `.mcp.json`, a test, a screenshot, a `.zestpaint`
+project you share, or an issue. Project files don't contain assistant
+settings. `.gitignore` also excludes `.env` files and stray
+`assistant.json` / `mcp-bridge.json` copies as a safety net. If a key ever
+does get committed, revoke it in the provider's console. Deleting the file
+isn't enough, because it stays in git history.
 
 ## Claude Code (MCP)
 
-Claude Code can drive the editor with the same tools as the built-in assistant
-(no Anthropic API key needed — it uses your Claude Code login).
+Claude Code can drive the editor with the same tools as the built-in
+assistant. You don't need an Anthropic API key for this, because it uses
+your Claude Code login.
 
-- The running app listens on a loopback port and writes it, with a random
-  token, to `~/.config/zestpaint/mcp-bridge.json` (owner-only). Toggle it under
-  Assistant ▸ settings ▸ *Let Claude Code drive the editor*.
-- `zestpaint mcp` is the stdio MCP server Claude Code launches; it forwards
-  each tool call to the running app, and its `open_zestpaint` tool starts the
-  app when it isn't running.
-- Inside this repo `.mcp.json` registers it (`cargo run --release -- mcp`).
-  To use it from anywhere, copy the command from the assistant settings, e.g.
+- The running app listens on a loopback port. Turn it on under Assistant ▸
+  settings ▸ *Let Claude Code drive the editor*. The port and a random token
+  go into `~/.config/zestpaint/mcp-bridge.json` (owner-only).
+- `zestpaint mcp` is the stdio MCP server that Claude Code launches. It
+  forwards each tool call to the running app, and its `open_zestpaint` tool
+  starts the app if it isn't running. In this repo, `.mcp.json` registers it
+  (`cargo run --release -- mcp`). To use it from anywhere, run
   `claude mcp add --scope user zestpaint -- /path/to/zestpaint mcp`.
-- Besides the assistant's tools it gets `import_model` (open an .fbx/.gltf
-  as a new document), `view_pieces` (select / isolate / hide / frame
-  pieces, like the keys above), `set_texture_resolution` and
-  `set_render_mode` (raster / path traced, to judge final looks),
-  `import_image` (a local file as stamp, map layer, fill layer or material
-  map), `set_view` (camera presets/framing) and `place_stamp` (stamp at a
-  viewport point) — the last two answer with a screenshot, so Claude can
-  place overlays and check them itself — and `set_matcap`.
-
-Materials have two Poiyomi-style matcap slots (Properties ▸ Material ▸
-Matcaps): a built-in (Shine, Rim light, Chrome, Pearl, Satin, Clay) or any
-matcap image, Add / Multiply / Replace / Screen, strength, limited by the
-Matcap / Matcap 2 shader-mask layers when present. Raster view only; saved
-with the project and undoable.
+- The app can also serve MCP over HTTP at `http://127.0.0.1:47821/mcp`
+  (plug button in the assistant header). The settings section has the
+  `claude mcp add --transport http …` command, including the bearer token.
 - `.claude/skills/zestpaint/` is a Claude Code skill with the editor's model
-  and recipes (tattoos, splatter, CC0 materials). Copy it to
-  `~/.claude/skills/` to have it outside the repo too.
+  and recipes for tattoos, splatter and CC0 materials. Copy it to
+  `~/.claude/skills/` to use it outside this repo.
+
+Besides the assistant's tools, Claude Code gets `import_model`,
+`view_pieces`, `set_texture_resolution`, `set_render_mode`, `import_image`,
+`set_view`, `place_stamp` and `set_matcap`. `set_view` and `place_stamp`
+answer with a screenshot, so Claude can check what it placed.
 
 ## Architecture
 
+The 3D scene renders into an offscreen image that egui shows as a texture in
+the central panel. Layer textures store premultiplied alpha in linear space
+(RGBA16F for colour, RG16F value + coverage for scalar channels). A GPU
+compositor flattens them into per-set composites, and the PBR shader
+samples those over each model's own material. Brush strokes are rasterised
+in UV space, with the screen-space brush projected per texel.
+
 | Module | Role |
 | --- | --- |
-| `app.rs` | winit application shell, egui panels, viewport, input routing |
-| `renderer.rs` | scene render pass, PBR + skybox pipelines |
-| `environment.rs` | HDRI/procedural env → cubemap, irradiance, prefilter (compute) |
-| `layers.rs` | layer stack document model + GPU compositor + height→normal derivation |
-| `paint.rs` | UV-space brush projection pipeline (color/roughness/metallic/height) |
-| `ao.rs` | multi-direction depth-visibility AO baker |
-| `bakers.rs` | position/normal/curvature mesh maps + smart-mask generators |
-| `pathtracer.rs` | progressive compute path tracer (CPU BVH, GGX, studio lights, backdrop, alpha) |
-| `studio.rs` | studio settings: lights and presets, backdrop, background, lens |
-| `skeleton.rs` | skeletons, skins (linear blend skinning), humanoid bone mapping, retargeting |
-| `poses.rs` | pose sources: FBX/glTF/BVH clips, built-in poses, the pose library |
-| `library.rs` | on-disk material library (ambientCG-style naming) |
-| `uv_tools.rs` | xatlas auto-unwrap integration |
-| `export.rs` | GPU readback and PNG encoding (flattened maps, single layers, masks) |
-| `project.rs` | `.zestpaint` project files: zip of JSON manifest + raw textures |
-| `gltf_loader.rs` | glTF import to CPU mesh/material data |
-| `fbx_loader.rs` | FBX import via ufbx (triangulation, unit/axis normalization) |
-| `camera.rs`, `mesh.rs`, `scene.rs` | orbit camera, vertex/mesh types, CPU scene data |
+| `app.rs`, `app/` | winit shell, egui panels and windows, input routing, undo history, project I/O |
+| `renderer.rs` | scene render passes: PBR, skybox, transparency, selection outline, matcaps |
+| `environment.rs` | HDRI / procedural sky → irradiance and prefiltered cubemaps (compute) |
+| `layers.rs` | layer stack, GPU compositor, blend modes, masks, height → normal, dilation |
+| `paint.rs` | UV-space brush projection: paint, erase, smudge, clone, fills |
+| `ao.rs`, `bakers.rs` | AO baker; position / normal / curvature maps and smart masks |
+| `pathtracer.rs` | progressive compute path tracer (CPU BVH, GGX, studio lights, alpha) |
+| `studio.rs`, `skeleton.rs`, `poses.rs` | studio lights / backdrop / lens; skinning and retargeting; pose sources |
+| `fbx_loader.rs`, `gltf_loader.rs`, `scene.rs`, `mesh.rs` | model import and CPU scene data |
+| `connectivity.rs`, `uv_tools.rs` | mesh shells / UV islands; xatlas auto-unwrap |
+| `library.rs`, `brushfile.rs` | material and brush library; GIMP / Photoshop brush parsing |
+| `export.rs`, `project.rs` | PNG export; `.zestpaint` project files |
+| `matcap.rs`, `texcompress.rs`, `vram.rs` | matcaps; BC compression; VRAM tracking and budget |
+| `assistant/` | Claude / Gemini clients, assistant tools, ComfyUI, MCP server and bridge |
+| `tools/matfetch` | CLI + library: CC0 catalogue mirror and procedural lace / stitch / splatter assets |
 
-The 3D scene renders into an offscreen image that egui displays as a texture in
-the central panel — the same viewport-in-dock pattern Substance uses. Layer
-textures store premultiplied alpha in linear space (RGBA16F color, RG16F
-value+coverage for scalar channels); the compositor flattens them into
-composite textures the PBR shader samples over each model's own material.
+## License
 
-## Known limitations / next steps
+Copyright © 2026 Ryno Kotze.
 
-- The OpenPBR-style shading is a subset (coat/sheen/emission/specular); full
-  OpenPBR 1.1 (transmission, subsurface, thin-film, anisotropy) is not
-  implemented.
-- The path tracer has metal/rough GGX, normal maps and emission, but not
-  coat, sheen, transmission or subsurface; studio lights are spheres, not
-  rectangular softboxes, and aren't seen directly by the camera.
-- Posing is CPU linear blend skinning (no dual quaternions or corrective
-  shapes); bakes made while posed use the posed mesh. Bones are adjusted
-  with sliders, not with a gizmo in the viewport.
-- Undo covers the document — strokes, every layer/mask/projection/tiling
-  edit, fills, bakes, visibility, material surface and map slots, UV unwrap —
-  from any panel or window. Brush/tool settings, camera, display & lighting
-  and layout are not undone, and opening a model starts a fresh history.
-- Bakes and exports run on the GPU queue synchronously and block the UI
-  while they run (no progress card or Cancel for them yet).
-- Re-unwrapping a set resets that set's layers (paint can't survive a UV
-  change); other sets are unaffected.
-- Manual UV island editing and thickness baking are future work.
+ZestPaint is free software under the **GNU General Public License, version
+3 or (at your option) any later version**. See [LICENSE](LICENSE). You can
+use, study, modify and share it. If you distribute it, or a modified
+version, you must do so under the same license with the source available.
 
-## Open-source material sources
+Under GPLv3 section 7(b) there is one additional term: you must keep
+the attribution **"Based on ZestPaint by Ryno Kotze"**, as described in
+[NOTICE](NOTICE).
 
-Drop CC0 material folders into `~/.zestpaint/library/materials/` — the
-scanner understands ambientCG / Poly Haven / cgbookcase file naming.
-[ambientCG](https://ambientcg.com) (2000+ CC0 PBR materials) and
-[Poly Haven](https://polyhaven.com) (CC0 textures + HDRIs, which also work
-with the HDRI loader) are the recommended sources. For a future full OpenPBR
-implementation, the Apache-2.0 [OpenPBR spec + MaterialX reference](https://github.com/AcademySoftwareFoundation/OpenPBR)
-is the path to follow.
+Third-party crates and the bundled fonts (Lucide: ISC, IBM Plex: SIL OFL
+1.1) keep their own licenses.
 
 [vulkano]: https://github.com/vulkano-rs/vulkano
 [egui]: https://github.com/emilk/egui

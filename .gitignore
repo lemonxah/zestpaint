@@ -1,1 +1,7 @@
 /target
+
+# Secrets: API keys belong in ~/.config/zestpaint/assistant.json or the environment, never in the repo.
+.env
+.env.*
+assistant.json
+mcp-bridge.json
