@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "zestpaint": {
+      "command": "cargo",
+      "args": ["run", "--release", "--quiet", "--", "mcp"]
+    }
+  }
+}

@@ -1,0 +1,39 @@
+#version 450
+// FMT: the storage format of the image being padded (rgba16f / rg16f).
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+layout(set = 0, binding = 0, FMT) uniform writeonly image2D dst;
+layout(set = 0, binding = 1, FMT) uniform readonly image2D src;
+// alpha_in_y: scalar channels store (value*a, a); colour channels store (rgb*a, a).
+layout(push_constant) uniform Pc { uint size; uint alpha_in_y; } pc;
+
+float coverage(vec4 c) {
+    return pc.alpha_in_y == 1u ? c.y : c.a;
+}
+
+void main() {
+    uvec2 id = gl_GlobalInvocationID.xy;
+    if (id.x >= pc.size || id.y >= pc.size) return;
+    ivec2 p = ivec2(id);
+
+    vec4 c = imageLoad(src, p);
+    if (coverage(c) > 0.001) {
+        imageStore(dst, p, c);
+        return;
+    }
+
+    // Uncovered: adopt the mean of whichever neighbours are covered. One texel
+    // of growth per pass, so N passes give N texels of padding.
+    vec4 sum = vec4(0.0);
+    float n = 0.0;
+    for (int dy = -1; dy <= 1; dy++) {
+        for (int dx = -1; dx <= 1; dx++) {
+            ivec2 q = clamp(p + ivec2(dx, dy), ivec2(0), ivec2(int(pc.size) - 1));
+            vec4 s = imageLoad(src, q);
+            if (coverage(s) > 0.001) {
+                sum += s;
+                n += 1.0;
+            }
+        }
+    }
+    imageStore(dst, p, n > 0.0 ? sum / n : c);
+}

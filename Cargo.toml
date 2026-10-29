@@ -1,0 +1,52 @@
+[workspace]
+members = ["tools/matfetch"]
+
+[package]
+name = "zestpaint"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.104"
+# Raw `VK_EXT_memory_budget` query (vulkano has the extension flag but no API); same version vulkano uses.
+ash = { version = "0.38", default-features = false }
+# Assistant: base64 image attachments for the Claude API.
+base64 = "0.22"
+egui = "0.31"
+egui_winit_vulkano = "0.28"
+glam = "0.33"
+gltf = { version = "1.4", features = ["extras"] }
+half = "2"
+image = "0.25"
+# BC7/BC4/BC5 compression of imported maps (prebuilt ISPC kernels, no ispc needed).
+intel_tex_2 = "0.5"
+# Catalog search, CC0 downloads and procedural splatter for the assistant.
+matfetch = { path = "tools/matfetch" }
+# Rasterises the SVG tattoo/stamp designs the assistant draws.
+resvg = "0.45"
+rfd = "0.15"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# The editor's own MCP endpoint for Claude Code (`claude mcp add --transport http`).
+tiny_http = "0.12"
+ufbx = "0.11.2"
+# Blocking HTTP for the assistant worker (Claude API streaming, ComfyUI, image fetch).
+ureq = { version = "3", features = ["json"] }
+vulkano = "0.35"
+vulkano-shaders = "0.35"
+vulkano-util = "0.35"
+winit = "0.30"
+xatlas-rs-v2 = "0.1.4"
+# Project files are a zip of a JSON manifest plus raw texture data.
+zip = { version = "8", default-features = false, features = ["deflate"] }
+
+[dev-dependencies]
+# Used to assert the icon constants really resolve to glyphs in lucide.ttf.
+ttf-parser = "0.25"
+
+# Debug builds of vulkano/image decoding are painfully slow; optimize deps even in dev.
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3

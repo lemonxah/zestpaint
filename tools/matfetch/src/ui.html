@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>matfetch — CC0 material browser</title>
+<style>
+  :root {
+    --bg: #14161a; --panel: #1c1f26; --panel2: #23272f; --line: #313640;
+    --text: #e6e9ef; --dim: #99a1b0; --accent: #62b6ff; --ok: #52c88a;
+    --warn: #e0a458; --err: #e06c6c;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f4f5f7; --panel: #fff; --panel2: #eceef2; --line: #d8dce3;
+      --text: #1a1d22; --dim: #6b7280; --accent: #0b74d4;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  header {
+    position: sticky; top: 0; z-index: 10; background: var(--panel);
+    border-bottom: 1px solid var(--line); padding: 10px 16px;
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  }
+  header h1 { font-size: 15px; margin: 0 12px 0 0; font-weight: 650; letter-spacing: .01em; }
+  input[type=search], select {
+    background: var(--panel2); color: var(--text); border: 1px solid var(--line);
+    border-radius: 6px; padding: 6px 9px; font: inherit; outline: none;
+  }
+  input[type=search] { min-width: 240px; flex: 1 1 240px; }
+  input[type=search]:focus, select:focus { border-color: var(--accent); }
+  button {
+    background: var(--accent); color: #06121f; border: 0; border-radius: 6px;
+    padding: 7px 13px; font: inherit; font-weight: 600; cursor: pointer;
+  }
+  button.ghost { background: var(--panel2); color: var(--text); border: 1px solid var(--line); }
+  button:disabled { opacity: .45; cursor: default; }
+  #summary { color: var(--dim); font-size: 13px; margin-left: auto; text-align: right; }
+  #grid {
+    display: grid; gap: 12px; padding: 16px;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  }
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 9px;
+    overflow: hidden; display: flex; flex-direction: column;
+  }
+  .card.sel { border-color: var(--accent); }
+  /* flex: none keeps the square from being stretched by taller cards in the row */
+  .thumbwrap { position: relative; aspect-ratio: 1; flex: none; background: var(--panel2); }
+  .thumbwrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .badge {
+    position: absolute; top: 6px; left: 6px; font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .04em; padding: 2px 6px;
+    border-radius: 4px; background: rgba(0,0,0,.62); color: #fff;
+  }
+  .badge.kind { left: auto; right: 6px; background: rgba(98,182,255,.85); color: #06121f; }
+  .pick { position: absolute; bottom: 6px; left: 6px; width: 18px; height: 18px; cursor: pointer; }
+  .meta { padding: 8px 10px 10px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+  .name { font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sub { color: var(--dim); font-size: 11.5px; display: flex; justify-content: space-between; gap: 6px; }
+  .sub a { color: var(--dim); }
+  .act { margin-top: auto; }
+  .act button { width: 100%; padding: 6px; font-size: 12.5px; }
+  .state { font-size: 12px; font-weight: 600; text-align: center; padding: 6px; border-radius: 6px; background: var(--panel2); }
+  .state.done { color: var(--ok); }
+  .state.failed { color: var(--err); }
+  .bar { height: 4px; background: var(--panel2); border-radius: 3px; overflow: hidden; }
+  .bar > i { display: block; height: 100%; background: var(--accent); width: 0; transition: width .3s; }
+  #more { padding: 24px; text-align: center; color: var(--dim); }
+  #toast {
+    position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+    padding: 10px 16px; box-shadow: 0 6px 24px rgba(0,0,0,.35); display: none;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>matfetch</h1>
+  <input type="search" id="q" placeholder="Search name or tag — e.g. wood, fabric, stitch, rust">
+  <select id="source"><option value="">all sources</option><option>polyhaven</option><option>ambientcg</option><option>procedural</option></select>
+  <select id="kind"><option value="">all kinds</option><option>material</option><option>decal</option><option>atlas</option><option>brush</option></select>
+  <select id="have"><option value="">all</option><option value="no">not downloaded</option><option value="yes">downloaded</option></select>
+  <select id="variant"></select>
+  <select id="sort"><option value="name">name</option><option value="size">size ↑</option><option value="size-">size ↓</option></select>
+  <button class="ghost" id="selall">Select filtered</button>
+  <button class="ghost" id="selnone">Clear</button>
+  <button id="go" disabled>Download</button>
+  <div id="summary">loading…</div>
+</header>
+<div id="grid"></div>
+<div id="more"></div>
+<div id="toast"></div>
+
+<script>
+const RES = ['1k','2k','4k','8k'], FMT = ['jpg','png'];
+let ASSETS = [], filtered = [], shown = 0, PAGE = 120;
+let installed = {}, progress = {}, selected = new Set();
+const el = id => document.getElementById(id);
+
+function human(b) {
+  const u = ['B','KiB','MiB','GiB','TiB']; let i = 0, v = b;
+  while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; }
+  return v.toFixed(1) + ' ' + u[i];
+}
+function toast(msg) {
+  const t = el('toast'); t.textContent = msg; t.style.display = 'block';
+  clearTimeout(t._h); t._h = setTimeout(() => t.style.display = 'none', 4000);
+}
+const variant = () => el('variant').value;
+const sizeOf = a => (a.variants[variant()] || {}).bytes || 0;
+
+function applyFilters() {
+  const q = el('q').value.trim().toLowerCase();
+  const src = el('source').value, kind = el('kind').value, have = el('have').value;
+  const terms = q ? q.split(/\s+/) : [];
+  filtered = ASSETS.filter(a => {
+    if (src && a.source !== src) return false;
+    if (kind && a.kind !== kind) return false;
+    if (have === 'yes' && !installed[a.id]) return false;
+    if (have === 'no' && installed[a.id]) return false;
+    if (!a.variants[variant()]) return false;
+    if (!terms.length) return true;
+    const hay = (a.name + ' ' + a.category + ' ' + a.tags.join(' ')).toLowerCase();
+    return terms.every(t => hay.includes(t));
+  });
+  const s = el('sort').value;
+  if (s === 'name') filtered.sort((a, b) => a.name.localeCompare(b.name));
+  if (s === 'size') filtered.sort((a, b) => sizeOf(a) - sizeOf(b));
+  if (s === 'size-') filtered.sort((a, b) => sizeOf(b) - sizeOf(a));
+
+  el('grid').innerHTML = ''; shown = 0;
+  renderMore();
+  updateSummary();
+}
+
+function updateSummary() {
+  const total = filtered.reduce((n, a) => n + sizeOf(a), 0);
+  const selBytes = [...selected].reduce((n, id) => {
+    const a = ASSETS.find(x => x.id === id); return n + (a ? sizeOf(a) : 0);
+  }, 0);
+  el('summary').innerHTML =
+    `${filtered.length} shown · ${human(total)}<br>` +
+    `${Object.keys(installed).length} on disk · ${selected.size} selected (${human(selBytes)})`;
+  el('go').disabled = selected.size === 0;
+  el('go').textContent = selected.size ? `Download ${selected.size}` : 'Download';
+}
+
+function cardFor(a) {
+  const d = document.createElement('div');
+  d.className = 'card' + (selected.has(a.id) ? ' sel' : '');
+  d.dataset.id = a.id;
+  d.innerHTML = `
+    <div class="thumbwrap">
+      ${a.thumb ? `<img loading="lazy" src="${a.thumb}" alt="">` : ''}
+      <span class="badge">${a.source === 'polyhaven' ? 'PH' : a.source === 'ambientcg' ? 'ACG' : 'PROC'}</span>
+      ${a.kind !== 'material' ? `<span class="badge kind">${a.kind}</span>` : ''}
+      <input class="pick" type="checkbox" ${selected.has(a.id) ? 'checked' : ''}>
+    </div>
+    <div class="meta">
+      <div class="name" title="${a.name}">${a.name}</div>
+      <div class="sub"><span>${human(sizeOf(a))}</span><a href="${a.page}" target="_blank" rel="noopener">source ↗</a></div>
+      <div class="act"></div>
+    </div>`;
+  d.querySelector('.pick').addEventListener('change', e => {
+    e.target.checked ? selected.add(a.id) : selected.delete(a.id);
+    d.classList.toggle('sel', e.target.checked);
+    updateSummary();
+  });
+  paintAction(d, a);
+  return d;
+}
+
+function paintAction(card, a) {
+  const act = card.querySelector('.act');
+  const p = progress[a.id];
+  if (p && (p.state === 'queued' || p.state === 'running')) {
+    const pct = p.total_bytes ? Math.min(100, 100 * p.done_bytes / p.total_bytes) : 0;
+    act.innerHTML = `<div class="state">${p.state === 'queued' ? 'queued' : Math.round(pct) + '%'}</div>
+                     <div class="bar"><i style="width:${pct}%"></i></div>`;
+    return;
+  }
+  if (p && p.state === 'failed') {
+    act.innerHTML = `<div class="state failed" title="${(p.error || '').replace(/"/g, '')}">failed — retry</div>`;
+    act.firstChild.onclick = () => queue([a.id]);
+    act.firstChild.style.cursor = 'pointer';
+    return;
+  }
+  const have = installed[a.id];
+  if (have) {
+    act.innerHTML = `<div class="state done">✓ ${have}</div>`;
+    if (have !== variant()) {
+      act.innerHTML += `<button class="ghost" style="margin-top:5px">get ${variant()}</button>`;
+      act.querySelector('button').onclick = () => queue([a.id]);
+    }
+    return;
+  }
+  act.innerHTML = `<button>Download</button>`;
+  act.querySelector('button').onclick = () => queue([a.id]);
+}
+
+function renderMore() {
+  const grid = el('grid');
+  const slice = filtered.slice(shown, shown + PAGE);
+  const frag = document.createDocumentFragment();
+  slice.forEach(a => frag.appendChild(cardFor(a)));
+  grid.appendChild(frag);
+  shown += slice.length;
+  el('more').textContent = shown < filtered.length
+    ? `showing ${shown} of ${filtered.length} — scroll for more` : '';
+}
+
+async function queue(ids) {
+  ids.forEach(id => progress[id] = { state: 'queued', done_bytes: 0, total_bytes: 0 });
+  repaint();
+  const r = await fetch('/api/download', {
+    method: 'POST',
+    body: JSON.stringify({ ids, variant: variant() })
+  }).then(r => r.json());
+  if (r.error) toast('error: ' + r.error);
+  else toast(`queued ${r.queued} asset${r.queued === 1 ? '' : 's'}`);
+}
+
+function repaint() {
+  document.querySelectorAll('.card').forEach(card => {
+    const a = ASSETS.find(x => x.id === card.dataset.id);
+    if (a) paintAction(card, a);
+  });
+}
+
+async function poll() {
+  try {
+    const s = await fetch('/api/status').then(r => r.json());
+    const before = Object.keys(installed).length;
+    installed = s.installed; progress = s.progress;
+    repaint();
+    if (Object.keys(installed).length !== before) updateSummary();
+  } catch (e) { /* server stopped; keep the page usable */ }
+}
+
+el('selall').onclick = () => {
+  filtered.forEach(a => { if (!installed[a.id]) selected.add(a.id); });
+  applyFilters();
+  toast(`${selected.size} selected`);
+};
+el('selnone').onclick = () => { selected.clear(); applyFilters(); };
+el('go').onclick = () => {
+  const ids = [...selected];
+  const bytes = ids.reduce((n, id) => { const a = ASSETS.find(x => x.id === id); return n + (a ? sizeOf(a) : 0); }, 0);
+  if (ids.length > 25 && !confirm(`Download ${ids.length} assets (${human(bytes)}) at ${variant()}?`)) return;
+  queue(ids);
+  selected.clear();
+  applyFilters();
+};
+['q', 'source', 'kind', 'have', 'sort'].forEach(id => {
+  el(id).addEventListener(id === 'q' ? 'input' : 'change', applyFilters);
+});
+el('variant').addEventListener('change', applyFilters);
+
+new IntersectionObserver(es => {
+  if (es[0].isIntersecting && shown < filtered.length) renderMore();
+}).observe(el('more'));
+
+(async function init() {
+  const sel = el('variant');
+  RES.forEach(r => FMT.forEach(f => {
+    const o = document.createElement('option');
+    o.value = `${r}-${f}`; o.textContent = `${r.toUpperCase()} ${f.toUpperCase()}`;
+    if (o.value === '2k-jpg') o.selected = true;
+    sel.appendChild(o);
+  }));
+  const idx = await fetch('/api/index').then(r => r.json());
+  ASSETS = idx.assets;
+  await poll();
+  applyFilters();
+  setInterval(poll, 1500);
+})();
+</script>
+</body>
+</html>
