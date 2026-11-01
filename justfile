@@ -64,3 +64,7 @@ deb image="ubuntu:24.04":
 # Build an .rpm inside a Fedora container (podman/docker)
 rpm image="fedora:latest":
     pkg/rpm/build-rpm.sh --container {{image}}
+
+# Build with Nix. The result is symlinked at ./result.
+nix:
+    nix build ./pkg/nix
