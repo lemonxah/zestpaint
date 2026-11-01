@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/brand/zestsurface-logo.svg" alt="ZestSurface — texture authoring software" width="640">
+</p>
+
 # ZestSurface
 
 ZestSurface is a 3D texture-painting app in the spirit of Adobe Substance 3D

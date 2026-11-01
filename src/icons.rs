@@ -199,6 +199,16 @@ mod tests {
             );
         }
     }
+
+    /// The About dialog and the README both show this file. resvg has to
+    /// accept it, or About falls back to a plain text title.
+    #[test]
+    fn logo_svg_rasterises() {
+        let svg = include_str!("../assets/brand/zestsurface-logo.svg");
+        let image = crate::assistant::images::render_svg(svg, 128).expect("logo svg");
+        assert!(image.width() > 64, "logo width {}", image.width());
+        assert!(image.height() > 64, "logo height {}", image.height());
+    }
 }
 
 /// The ZestSurface app icon (`assets/icon/zestsurface.svg`, pre-rendered) as

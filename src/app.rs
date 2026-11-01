@@ -191,7 +191,7 @@ struct AppState {
     /// One paintable texture set per named sub-model (body, shirt, …).
     texture_sets: Vec<TextureSet>,
     active_set: usize,
-    citrus: Option<crate::citrus::CitrusManifest>,
+    zestengine: Option<crate::zestengine::ZestEngineManifest>,
     paint: PaintSystem,
     brush: BrushSettings,
     tool: Tool,
@@ -322,6 +322,8 @@ struct UiControls {
     mask_overlay: bool,
     /// The app icon, for the menu bar; uploaded on first use.
     logo: Option<egui::TextureHandle>,
+    /// Full lockup for the About dialog, rasterised from the logo SVG once.
+    about_logo: Option<egui::TextureHandle>,
     /// A piece picked in the viewport, for the texture-set list to scroll to.
     scroll_to_set: Option<usize>,
     /// Clone keeps one source offset across strokes (Photoshop's "Aligned").
@@ -505,7 +507,7 @@ impl App {
                     PAINT_RESOLUTION,
                 )],
                 active_set: 0,
-                citrus: None,
+                zestengine: None,
                 models,
                 paint: PaintSystem::new(gpu.clone()),
                 brush: BrushSettings::default(),
@@ -595,6 +597,7 @@ impl App {
                     tiling_linked: true,
                     mask_overlay: true,
                     logo: None,
+                    about_logo: None,
                     scroll_to_set: None,
                     clone_aligned: true,
                     export_shader_masks: true,
@@ -657,12 +660,12 @@ impl App {
     /// What launching shows: `project` (from the command line) when given,
     /// else what `settings.json`'s `startup` says. A project is read on a
     /// worker like File ▸ Open project and adopted once it is ready.
-    pub fn start(&mut self, project: Option<std::path::PathBuf>, citrus_manifest: Option<std::path::PathBuf>) {
+    pub fn start(&mut self, project: Option<std::path::PathBuf>, zestengine_manifest: Option<std::path::PathBuf>) {
         let state = &mut self.state;
-        if let Some(manifest_path) = citrus_manifest {
-            match crate::citrus::read_manifest(&manifest_path) {
-                Ok(manifest) => state.citrus = Some(manifest),
-                Err(e) => eprintln!("reading citrus manifest {}: {e:#}", manifest_path.display()),
+        if let Some(manifest_path) = zestengine_manifest {
+            match crate::zestengine::read_manifest(&manifest_path) {
+                Ok(manifest) => state.zestengine = Some(manifest),
+                Err(e) => eprintln!("reading zestengine manifest {}: {e:#}", manifest_path.display()),
             }
         }
         if let Some(path) = project {
@@ -691,7 +694,7 @@ impl App {
 }
 
 /// Upload any thumbnails that finished decoding since the last frame.
-fn citrus_kind(kind: crate::layers::MapKind) -> &'static str {
+fn zestengine_kind(kind: crate::layers::MapKind) -> &'static str {
     use crate::layers::MapKind;
     match kind {
         MapKind::BaseColor => "BaseColor",
@@ -1920,9 +1923,9 @@ impl AppState {
     }
 
     /// Parse a model on a worker; `poll_import` adopts it when done.
-    fn export_to_citrus(&mut self) {
-        let Some(manifest) = self.citrus.clone() else {
-            self.ui.status = "No Citrus exchange open".into();
+    fn export_to_zestengine(&mut self) {
+        let Some(manifest) = self.zestengine.clone() else {
+            self.ui.status = "No ZestEngine exchange open".into();
             return;
         };
         let maps = crate::layers::MapKind::ALL.to_vec();
@@ -1940,14 +1943,14 @@ impl AppState {
             &self.gpu,
             &mut self.texture_sets,
             &include,
-            "citrus",
+            "zestengine",
             &maps,
             &contents,
             &dir,
         ) {
             Ok(w) => w,
             Err(e) => {
-                self.ui.status = format!("Export to Citrus failed: {e:#}");
+                self.ui.status = format!("Export to ZestEngine failed: {e:#}");
                 return;
             }
         };
@@ -1957,39 +1960,39 @@ impl AppState {
                 if *kind == crate::layers::MapKind::Height {
                     continue;
                 }
-                return_maps.push(crate::citrus::ReturnMap {
+                return_maps.push(crate::zestengine::ReturnMap {
                     slot,
-                    kind: citrus_kind(*kind).to_owned(),
+                    kind: zestengine_kind(*kind).to_owned(),
                     file: file.clone(),
                 });
             }
         }
-        let ret = crate::citrus::CitrusReturn {
+        let ret = crate::zestengine::ZestEngineReturn {
             object_id: manifest.object_id.clone(),
             maps: return_maps,
         };
-        match crate::citrus::write_return(&dir, &ret) {
+        match crate::zestengine::write_return(&dir, &ret) {
             Ok(()) => {
-                self.ui.status = format!("Exported {} maps to Citrus", ret.maps.len());
+                self.ui.status = format!("Exported {} maps to ZestEngine", ret.maps.len());
             }
             Err(e) => {
-                self.ui.status = format!("Writing citrus_return.json failed: {e:#}");
+                self.ui.status = format!("Writing zestengine_return.json failed: {e:#}");
             }
         }
     }
 
-    fn apply_citrus_textures(&mut self) {
-        let Some(manifest) = self.citrus.clone() else { return };
+    fn apply_zestengine_textures(&mut self) {
+        let Some(manifest) = self.zestengine.clone() else { return };
         for map in &manifest.textures {
             let Some(kind) = kind_from_str(&map.kind) else { continue };
             let Some(set) = self.texture_sets.get_mut(map.slot) else { continue };
             let file = manifest.return_dir.join(&map.file);
             match crate::library::load_map(&file) {
                 Ok(image) => {
-                    let name = format!("Citrus · {}", map.kind);
+                    let name = format!("ZestEngine · {}", map.kind);
                     set.layers.import_map_layer(name, kind, &image);
                 }
-                Err(e) => eprintln!("loading citrus map {}: {e:#}", file.display()),
+                Err(e) => eprintln!("loading zestengine map {}: {e:#}", file.display()),
             }
         }
     }
@@ -2058,7 +2061,7 @@ impl AppState {
                 self.reset_pose();
                 // Old bakes/paint don't apply to a new mesh.
                 self.rebuild_texture_sets();
-                self.apply_citrus_textures();
+                self.apply_zestengine_textures();
                 self.selection.clear();
                 self.isolate_backup = None;
                 self.isolate_camera = None;

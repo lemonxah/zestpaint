@@ -1,12 +1,12 @@
-//! Citrus engine exchange: `citrus.json` in, `citrus_return.json` + maps out.
-//! The JSON field names are a shared contract with the Citrus project.
+//! ZestEngine engine exchange: `zestengine.json` in, `zestengine_return.json` + maps out.
+//! The JSON field names are a shared contract with the ZestEngine project.
 
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct CitrusManifest {
+pub struct ZestEngineManifest {
     pub object_id: String,
     pub object_name: String,
     pub slot_count: usize,
@@ -17,7 +17,7 @@ pub struct CitrusManifest {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
-pub struct CitrusReturn {
+pub struct ZestEngineReturn {
     pub object_id: String,
     pub maps: Vec<ReturnMap>,
 }
@@ -30,12 +30,12 @@ pub struct ReturnMap {
     pub file: String,
 }
 
-pub fn read_manifest(path: &Path) -> anyhow::Result<CitrusManifest> {
+pub fn read_manifest(path: &Path) -> anyhow::Result<ZestEngineManifest> {
     let text = std::fs::read_to_string(path)?;
     Ok(serde_json::from_str(&text)?)
 }
 
-pub fn write_return(dir: &Path, ret: &CitrusReturn) -> anyhow::Result<()> {
-    std::fs::write(dir.join("citrus_return.json"), serde_json::to_string_pretty(ret)?)?;
+pub fn write_return(dir: &Path, ret: &ZestEngineReturn) -> anyhow::Result<()> {
+    std::fs::write(dir.join("zestengine_return.json"), serde_json::to_string_pretty(ret)?)?;
     Ok(())
 }

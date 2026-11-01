@@ -153,8 +153,28 @@ impl AppState {
 
         if self.ui.about_open {
             let mut open = true;
+            if self.ui.about_logo.is_none() {
+                if let Ok(image) = crate::assistant::images::render_svg(
+                    include_str!("../../assets/brand/zestsurface-logo.svg"),
+                    960,
+                ) {
+                    let size = [image.width() as usize, image.height() as usize];
+                    let color = egui::ColorImage::from_rgba_unmultiplied(size, image.as_raw());
+                    self.ui.about_logo = Some(ctx.load_texture("about_logo", color, egui::TextureOptions::LINEAR));
+                }
+            }
+            let about_logo = self.ui.about_logo.clone();
             egui::Window::new("About ZestSurface").open(&mut open).collapsible(false).resizable(false).show(ctx, |ui| {
-                ui.label(RichText::new("ZestSurface").font(theme::semibold(theme::TITLE_SIZE)));
+                ui.set_min_width(440.0);
+                if let Some(logo) = &about_logo {
+                    let [w, h] = logo.size();
+                    let width = 420.0;
+                    let height = width * h as f32 / w as f32;
+                    ui.add(egui::Image::new((logo.id(), egui::vec2(width, height))));
+                    ui.add_space(8.0);
+                } else {
+                    ui.label(RichText::new("ZestSurface").font(theme::semibold(theme::TITLE_SIZE)));
+                }
                 ui.label(format!("Version {}", env!("CARGO_PKG_VERSION")));
                 ui.label(RichText::new("A 3D texture painter in Rust on Vulkan, with an egui interface.").color(theme::TEXT_MUTED));
                 ui.label(
