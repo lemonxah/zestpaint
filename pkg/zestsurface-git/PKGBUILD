@@ -1,0 +1,65 @@
+# Maintainer: Ryno Kotze <lemon.xah@gmail.com>
+pkgname=zestsurface-git
+pkgver=r0.0000000
+pkgrel=1
+pkgdesc="3D texture painting for PBR materials (git version)"
+arch=('x86_64')
+url="https://github.com/lemonxah/zestsurface"
+license=('GPL-3.0-or-later' 'OFL-1.1-RFN' 'ISC')
+options=('!lto' '!debug')
+depends=(
+  'vulkan-icd-loader'
+  'libx11'
+  'libxcursor'
+  'libxi'
+  'libxkbcommon'
+  'libxkbcommon-x11'
+  'wayland'
+  'hicolor-icon-theme'
+)
+makedepends=(
+  'rust'
+  'cargo'
+  'cmake'
+  'python'
+  'git'
+)
+optdepends=('xdg-desktop-portal: file open and save dialogs')
+provides=('zestsurface')
+conflicts=('zestsurface' 'zestpaint')
+replaces=('zestpaint')
+source=("$pkgname::git+$url.git")
+sha256sums=('SKIP')
+
+pkgver() {
+  cd "$pkgname"
+  printf "r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+prepare() {
+  cd "$pkgname"
+  export RUSTUP_TOOLCHAIN=stable
+  cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
+build() {
+  cd "$pkgname"
+  export RUSTUP_TOOLCHAIN=stable
+  export CARGO_TARGET_DIR=target
+  cargo build --frozen --release -p zestsurface
+}
+
+package() {
+  cd "$pkgname"
+  install -Dm755 target/release/zestsurface "$pkgdir/usr/bin/zestsurface"
+  install -Dm644 zestsurface.desktop "$pkgdir/usr/share/applications/zestsurface.desktop"
+  install -Dm644 assets/icon/zestsurface.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/zestsurface.svg"
+  local size
+  for size in 16 32 48 64 128 256 512; do
+    install -Dm644 "assets/icon/zestsurface-${size}.png" \
+      "$pkgdir/usr/share/icons/hicolor/${size}x${size}/apps/zestsurface.png"
+  done
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 assets/fonts/PLEX-LICENSE.txt "$pkgdir/usr/share/licenses/$pkgname/PLEX-LICENSE.txt"
+  install -Dm644 assets/fonts/LUCIDE-LICENSE.txt "$pkgdir/usr/share/licenses/$pkgname/LUCIDE-LICENSE.txt"
+}
