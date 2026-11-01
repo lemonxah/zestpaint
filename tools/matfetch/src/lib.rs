@@ -1,5 +1,5 @@
 //! matfetch's catalog/download/generator core, shared by the `matfetch` CLI and
-//! the zestpaint assistant (which searches and installs assets on request).
+//! the zestsurface assistant (which searches and installs assets on request).
 
 pub mod brushes;
 pub mod catalog;

@@ -4774,7 +4774,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "zestpaint"
+name = "zestsurface"
 version = "0.1.0"
 dependencies = [
  "anyhow",

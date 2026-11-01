@@ -1,6 +1,9 @@
 /target
+/pkg/deb/*.deb
+/pkg/deb/zestsurface_*/
+/pkg/rpm/rpmbuild/
 
-# Secrets: API keys belong in ~/.config/zestpaint/assistant.json or the environment, never in the repo.
+# Secrets: API keys belong in ~/.config/zestsurface/assistant.json or the environment, never in the repo.
 .env
 .env.*
 assistant.json

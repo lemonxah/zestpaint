@@ -1,4 +1,4 @@
-//! `zestpaint mcp`: an MCP server on stdio for Claude Code.
+//! `zestsurface mcp`: an MCP server on stdio for Claude Code.
 //!
 //! It holds no document state. Every `tools/call` is forwarded to the running
 //! editor over the loopback bridge (`bridge.rs`), so Claude Code drives the
@@ -20,12 +20,12 @@ use super::{ToolOutput, tools, worker};
 const PROTOCOLS: [&str; 4] = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
 
 /// MCP-only: start the editor when it isn't running.
-const OPEN_TOOL: &str = "open_zestpaint";
+const OPEN_TOOL: &str = "open_zestsurface";
 
 /// For the editor's own HTTP endpoint (`bridge.rs`): it is running by definition.
-const IN_APP_INTRO: &str = "These tools operate ZestPaint, a Substance-Painter-style 3D texture painting app running on the user's desktop. Start with get_editor_state. Use capture_viewport to see the model and check your changes. The user does the brush work in the viewport — tell them exactly what to click next.";
+const IN_APP_INTRO: &str = "These tools operate ZestSurface, a Substance-Painter-style 3D texture painting app running on the user's desktop. Start with get_editor_state. Use capture_viewport to see the model and check your changes. The user does the brush work in the viewport — tell them exactly what to click next.";
 
-const INSTRUCTIONS_INTRO: &str = "These tools operate ZestPaint, a Substance-Painter-style 3D texture painting app running on the user's desktop. Start with get_editor_state; if the editor isn't running, call open_zestpaint. Use capture_viewport to see the model and check your changes. The user does the brush work in the viewport — tell them exactly what to click next.";
+const INSTRUCTIONS_INTRO: &str = "These tools operate ZestSurface, a Substance-Painter-style 3D texture painting app running on the user's desktop. Start with get_editor_state; if the editor isn't running, call open_zestsurface. Use capture_viewport to see the model and check your changes. The user does the brush work in the viewport — tell them exactly what to click next.";
 
 pub fn serve_stdio() -> Result<()> {
     let stdin = std::io::stdin();
@@ -54,7 +54,7 @@ fn handle(msg: &Value) -> Option<Value> {
 
 /// Like [`handle`], but `in_app` runs tool calls directly — the editor's own
 /// HTTP endpoint — instead of forwarding them over the bridge, and
-/// `open_zestpaint` is left out.
+/// `open_zestsurface` is left out.
 pub(super) fn handle_with(msg: &Value, in_app: Option<&dyn Fn(&str, &Value) -> ToolOutput>) -> Option<Value> {
     let id = msg.get("id")?.clone();
     let params = &msg["params"];
@@ -65,7 +65,7 @@ pub(super) fn handle_with(msg: &Value, in_app: Option<&dyn Fn(&str, &Value) -> T
             Ok(json!({
                 "protocolVersion": version,
                 "capabilities": {"tools": {"listChanged": false}},
-                "serverInfo": {"name": "zestpaint", "version": env!("CARGO_PKG_VERSION")},
+                "serverInfo": {"name": "zestsurface", "version": env!("CARGO_PKG_VERSION")},
                 "instructions": format!("{}\n\n{}", if in_app.is_some() { IN_APP_INTRO } else { INSTRUCTIONS_INTRO }, worker::EDITOR_GUIDE),
             }))
         }
@@ -121,9 +121,9 @@ fn tool_list(with_open: bool) -> Vec<Value> {
     }
     list.push(json!({
         "name": OPEN_TOOL,
-        "description": "Start the ZestPaint editor if it isn't running (optionally opening a .zestpaint project) and wait until its tools are reachable. Does nothing when it is already running.",
+        "description": "Start the ZestSurface editor if it isn't running (optionally opening a .zestsurface project) and wait until its tools are reachable. Does nothing when it is already running.",
         "inputSchema": {"type": "object", "properties": {
-            "project": {"type": "string", "description": "Absolute path of a .zestpaint project to open."}
+            "project": {"type": "string", "description": "Absolute path of a .zestsurface project to open."}
         }},
     }));
     list
@@ -145,7 +145,7 @@ fn discovery() -> Option<Discovery> {
 
 fn not_running() -> anyhow::Error {
     anyhow::anyhow!(
-        "ZestPaint isn't running, or its Claude Code bridge is off. Call {OPEN_TOOL} to start it (or start it yourself; \
+        "ZestSurface isn't running, or its Claude Code bridge is off. Call {OPEN_TOOL} to start it (or start it yourself; \
          the bridge is under Assistant ▸ settings), then retry."
     )
 }
@@ -170,15 +170,15 @@ pub(super) fn forward_to(found: &Discovery, name: &str, args: &Value) -> Result<
     writer.flush()?;
     let mut line = String::new();
     BufReader::new(stream).read_line(&mut line)?;
-    anyhow::ensure!(!line.trim().is_empty(), "ZestPaint closed the connection (did it quit?)");
-    serde_json::from_str(&line).context("bad reply from ZestPaint")
+    anyhow::ensure!(!line.trim().is_empty(), "ZestSurface closed the connection (did it quit?)");
+    serde_json::from_str(&line).context("bad reply from ZestSurface")
 }
 
 fn open_editor(args: &Value) -> Result<String> {
     if running() {
-        return Ok("ZestPaint is already running.".into());
+        return Ok("ZestSurface is already running.".into());
     }
-    let exe = std::env::current_exe().context("can't locate the zestpaint executable")?;
+    let exe = std::env::current_exe().context("can't locate the zestsurface executable")?;
     let mut cmd = std::process::Command::new(exe);
     if let Some(project) = args["project"].as_str().filter(|p| !p.trim().is_empty()) {
         cmd.arg(project);
@@ -188,18 +188,18 @@ fn open_editor(args: &Value) -> Result<String> {
     // Its own process group, so it outlives this server and Claude Code.
     #[cfg(unix)]
     std::os::unix::process::CommandExt::process_group(&mut cmd, 0);
-    let mut child = cmd.spawn().context("failed to start ZestPaint")?;
+    let mut child = cmd.spawn().context("failed to start ZestSurface")?;
     let start = Instant::now();
     while start.elapsed() < Duration::from_secs(60) {
         if running() {
-            return Ok(format!("ZestPaint started (pid {}) and is ready.", child.id()));
+            return Ok(format!("ZestSurface started (pid {}) and is ready.", child.id()));
         }
         if let Some(status) = child.try_wait()? {
-            anyhow::bail!("ZestPaint exited during startup ({status})");
+            anyhow::bail!("ZestSurface exited during startup ({status})");
         }
         std::thread::sleep(Duration::from_millis(250));
     }
-    anyhow::bail!("ZestPaint started but its bridge didn't come up within 60 s — is the Claude Code bridge enabled in the assistant settings?")
+    anyhow::bail!("ZestSurface started but its bridge didn't come up within 60 s — is the Claude Code bridge enabled in the assistant settings?")
 }
 
 #[cfg(test)]

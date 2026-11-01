@@ -38,7 +38,7 @@ pub const IMAGE_MODELS: [&str; 4] = ["gemini-nano-banana-2.1", "gemini-3.1-flash
 pub const IMAGE_BACKENDS: [(&str, &str); 3] = [("auto", "Auto"), ("gemini", "Nano Banana (Gemini)"), ("comfyui", "ComfyUI (local)")];
 pub const EFFORTS: [&str; 5] = ["low", "medium", "high", "xhigh", "max"];
 
-/// Persisted in `~/.config/zestpaint/assistant.json`.
+/// Persisted in `~/.config/zestsurface/assistant.json`.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(default)]
 pub struct Settings {
@@ -66,7 +66,7 @@ pub struct Settings {
     /// Send the active texture set's base colour with every message.
     pub attach_textures: bool,
     /// Run the MCP server Claude Code drives the editor through (the HTTP
-    /// endpoint, and the bridge `zestpaint mcp` forwards to).
+    /// endpoint, and the bridge `zestsurface mcp` forwards to).
     pub claude_code_bridge: bool,
     /// Port of the HTTP MCP endpoint, fixed so Claude Code's registration
     /// keeps working across restarts.
@@ -183,7 +183,7 @@ impl Settings {
 }
 
 /// The real directory holding `materials/` and `brushes/`. The
-/// `~/.zestpaint/library` entries may be symlinks onto another filesystem, and
+/// `~/.zestsurface/library` entries may be symlinks onto another filesystem, and
 /// matfetch stages downloads next to the root and renames them into place — a
 /// rename across filesystems fails, so resolve the links first.
 pub fn library_root() -> PathBuf {

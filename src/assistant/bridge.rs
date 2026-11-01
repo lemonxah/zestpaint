@@ -1,8 +1,8 @@
 //! The editor side of the Claude Code bridge.
 //!
 //! The running app listens on a loopback TCP port and answers tool calls from
-//! `zestpaint mcp` (see `mcp.rs`), the MCP server Claude Code launches. The
-//! port and a random token go in `~/.config/zestpaint/mcp-bridge.json` (owner-only);
+//! `zestsurface mcp` (see `mcp.rs`), the MCP server Claude Code launches. The
+//! port and a random token go in `~/.config/zestsurface/mcp-bridge.json` (owner-only);
 //! every request must carry the token, so other local users and web pages
 //! can't drive the editor.
 //!
@@ -34,7 +34,7 @@ use serde_json::{Value, json};
 use super::tools::{self, WorkerCtx};
 use super::{Event, Settings, ToolOutput, worker};
 
-/// What `~/.config/zestpaint/mcp-bridge.json` holds.
+/// What `~/.config/zestsurface/mcp-bridge.json` holds.
 #[derive(Serialize, Deserialize)]
 pub struct Discovery {
     pub port: u16,
@@ -54,7 +54,7 @@ pub fn http_url(port: u16) -> String {
 pub struct Bridge {
     pub port: u16,
     /// The HTTP MCP endpoint's port, or why it couldn't listen (the bridge
-    /// for `zestpaint mcp` works either way).
+    /// for `zestsurface mcp` works either way).
     pub http: std::result::Result<u16, String>,
     /// Editor calls and activity for the UI thread, like a turn's events.
     pub events: mpsc::Receiver<Event>,
@@ -185,7 +185,7 @@ fn serve_http(
                     std::thread::sleep(std::time::Duration::from_millis(50));
                     continue;
                 }
-                return Err(if busy { format!("port {port} is in use (another ZestPaint?)") } else { format!("can't listen on port {port}: {e}") });
+                return Err(if busy { format!("port {port} is in use (another ZestSurface?)") } else { format!("can't listen on port {port}: {e}") });
             }
         }
     };
@@ -224,7 +224,7 @@ fn http_request(mut req: tiny_http::Request, token: &str, settings_path: &Path, 
     } else if header("Origin").is_some_and(|o| !local(o.split_once("://").map_or(o.as_str(), |(_, rest)| rest))) {
         plain(403, "forbidden origin")
     } else if header("Authorization").as_deref() != Some(&format!("Bearer {token}")) {
-        plain(401, "missing or wrong bearer token (see ZestPaint ▸ Assistant ▸ settings)")
+        plain(401, "missing or wrong bearer token (see ZestSurface ▸ Assistant ▸ settings)")
     } else if *req.method() != tiny_http::Method::Post {
         // No server-initiated stream: every reply comes back on its POST.
         plain(405, "POST only").with_header(tiny_http::Header::from_bytes("Allow", "POST").unwrap())
@@ -383,7 +383,7 @@ mod tests {
         let tools: Value = serde_json::from_str(&body).unwrap();
         let names: Vec<&str> = tools["result"]["tools"].as_array().unwrap().iter().filter_map(|t| t["name"].as_str()).collect();
         assert!(names.contains(&"set_brush"));
-        assert!(!names.contains(&"open_zestpaint"), "the editor is already running");
+        assert!(!names.contains(&"open_zestsurface"), "the editor is already running");
 
         let call = {
             let (post, bearer) = (post.clone(), bearer.clone());

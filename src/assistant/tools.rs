@@ -528,7 +528,7 @@ fn create_material(input: &Value, ctx: &WorkerCtx) -> Result<ToolOutput> {
         metallic: input["metallic"].as_f64().unwrap_or(0.0) as f32,
         variation: input["variation"].as_f64().unwrap_or(0.3) as f32,
         tags,
-        description: "Created by the zestpaint assistant".into(),
+        description: "Created by the zestsurface assistant".into(),
     };
     let dir = matfetch::splatter::generate_flat_material(&library_root(), &m, 1024)?;
     let _ = ctx.events.send(Event::LibraryChanged);
@@ -564,7 +564,7 @@ fn stamp_from_svg(input: &Value, ctx: &WorkerCtx) -> Result<ToolOutput> {
     let svg = str_arg(input, "svg")?;
     let size = input["size"].as_u64().unwrap_or(1024).clamp(256, 2048) as u32;
     let img = images::render_svg(svg, size)?;
-    finish_stamp(name, img, "svg", "Drawn as SVG by the zestpaint assistant".into(), ctx)
+    finish_stamp(name, img, "svg", "Drawn as SVG by the zestsurface assistant".into(), ctx)
 }
 
 fn image_stamp(input: &Value, ctx: &WorkerCtx) -> Result<ToolOutput> {
@@ -728,7 +728,7 @@ mod smoke {
         let cancel = Arc::new(AtomicBool::new(false));
         let (tx, rx) = mpsc::channel();
         let ctx = WorkerCtx { settings: &settings, cancel: &cancel, events: &tx };
-        let out_dir = std::env::var("ZESTPAINT_SMOKE_OUT").map(PathBuf::from).ok();
+        let out_dir = std::env::var("ZESTSURFACE_SMOKE_OUT").map(PathBuf::from).ok();
 
         let found = run_worker_tool("search_online_assets", &json!({"query": "leaking stain"}), &ctx);
         assert!(!found.is_error, "{:?}", found.content);

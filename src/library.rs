@@ -85,21 +85,47 @@ pub fn sanitize(name: &str) -> String {
     if trimmed.is_empty() { "brush".to_string() } else { trimmed }
 }
 
-/// Root of the user's material library: `~/.zestpaint/library/materials`.
+fn home_dir() -> PathBuf {
+    std::env::var_os("HOME").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("."))
+}
+
+/// `~/.zestsurface`.
+pub fn data_root() -> PathBuf {
+    home_dir().join(".zestsurface")
+}
+
+/// Rename `~/.zestpaint/library` to `~/.zestsurface/library` the first time
+/// the new directory has nothing in it. A library already there wins.
+pub fn migrate_library() {
+    let new_lib = data_root().join("library");
+    let old_lib = home_dir().join(".zestpaint/library");
+    if !old_lib.exists() || std::fs::read_dir(&new_lib).ok().and_then(|mut d| d.next()).is_some() {
+        return;
+    }
+    if new_lib.exists() {
+        let _ = std::fs::remove_dir_all(&new_lib);
+    }
+    if let Some(parent) = new_lib.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    if std::fs::rename(&old_lib, &new_lib).is_err() {
+        let _ = std::os::unix::fs::symlink(&old_lib, &new_lib);
+    }
+}
+
+/// Root of the user's material library: `~/.zestsurface/library/materials`.
 /// Drop CC0 material folders here (ambientCG / Poly Haven zips extract into
 /// exactly the naming this scanner understands).
 pub fn library_dir() -> PathBuf {
-    let home = std::env::var_os("HOME").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("."));
-    home.join(".zestpaint/library/materials")
+    data_root().join("library/materials")
 }
 
-/// Root of the brush/stamp library: `~/.zestpaint/library/brushes`. Structurally
+/// Root of the brush/stamp library: `~/.zestsurface/library/brushes`. Structurally
 /// identical to a material folder — decals and atlases carry full PBR sets,
 /// generated stamps carry just coverage and relief — so the same scanner reads
 /// both.
 pub fn brush_dir() -> PathBuf {
-    let home = std::env::var_os("HOME").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("."));
-    home.join(".zestpaint/library/brushes")
+    data_root().join("library/brushes")
 }
 
 /// Scan the material library.
@@ -237,7 +263,7 @@ mod tests {
     #[test]
     fn canonical_matfetch_filenames_all_resolve() {
         let dir = std::env::temp_dir()
-            .join(format!("zestpaint-lib-{}-{:?}", std::process::id(), std::thread::current().id()));
+            .join(format!("zestsurface-lib-{}-{:?}", std::process::id(), std::thread::current().id()));
         std::fs::create_dir_all(&dir).unwrap();
 
         let expected = [
@@ -277,7 +303,7 @@ mod tests {
     #[test]
     fn opacity_is_not_confused_with_base_colour() {
         let dir = std::env::temp_dir()
-            .join(format!("zestpaint-lib2-{}-{:?}", std::process::id(), std::thread::current().id()));
+            .join(format!("zestsurface-lib2-{}-{:?}", std::process::id(), std::thread::current().id()));
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("opacity.png"), b"").unwrap();
         let found = scan_material_dir(&dir);

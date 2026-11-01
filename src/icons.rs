@@ -201,12 +201,12 @@ mod tests {
     }
 }
 
-/// The ZestPaint app icon (`assets/icon/zestpaint.svg`, pre-rendered) as
+/// The ZestSurface app icon (`assets/icon/zestsurface.svg`, pre-rendered) as
 /// straight RGBA at 64 or 256 px: (pixels, side).
 pub fn app_icon(size: u32) -> Option<(Vec<u8>, u32)> {
     let png: &[u8] = match size {
-        64 => include_bytes!("../assets/icon/zestpaint-64.png"),
-        _ => include_bytes!("../assets/icon/zestpaint-256.png"),
+        64 => include_bytes!("../assets/icon/zestsurface-64.png"),
+        _ => include_bytes!("../assets/icon/zestsurface-256.png"),
     };
     let image = image::load_from_memory(png).ok()?.to_rgba8();
     let side = image.width();

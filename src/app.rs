@@ -191,6 +191,7 @@ struct AppState {
     /// One paintable texture set per named sub-model (body, shirt, …).
     texture_sets: Vec<TextureSet>,
     active_set: usize,
+    citrus: Option<crate::citrus::CitrusManifest>,
     paint: PaintSystem,
     brush: BrushSettings,
     tool: Tool,
@@ -504,6 +505,7 @@ impl App {
                     PAINT_RESOLUTION,
                 )],
                 active_set: 0,
+                citrus: None,
                 models,
                 paint: PaintSystem::new(gpu.clone()),
                 brush: BrushSettings::default(),
@@ -566,11 +568,11 @@ impl App {
                     library: Vec::new(),
                     library_scanned: false,
                     library_save_name: String::new(),
-                    // ZESTPAINT_OPEN_BROWSER=material|brush|both opens a browser
+                    // ZESTSURFACE_OPEN_BROWSER=material|brush|both opens a browser
                     // window at startup, so the secondary-window path can be
                     // exercised without clicking.
                     library_open: matches!(
-                        std::env::var("ZESTPAINT_OPEN_BROWSER").as_deref(),
+                        std::env::var("ZESTSURFACE_OPEN_BROWSER").as_deref(),
                         Ok("material") | Ok("brush") | Ok("both")
                     ),
                     library_filter: String::new(),
@@ -579,7 +581,7 @@ impl App {
                     library_loader: None,
                     brushes: Vec::new(),
                     brushes_scanned: false,
-                    library_tab: if std::env::var("ZESTPAINT_OPEN_BROWSER").as_deref() == Ok("brush") {
+                    library_tab: if std::env::var("ZESTSURFACE_OPEN_BROWSER").as_deref() == Ok("brush") {
                         library_window::LibraryTab::Brushes
                     } else {
                         library_window::LibraryTab::Materials
@@ -655,10 +657,24 @@ impl App {
     /// What launching shows: `project` (from the command line) when given,
     /// else what `settings.json`'s `startup` says. A project is read on a
     /// worker like File ▸ Open project and adopted once it is ready.
-    pub fn start(&mut self, project: Option<std::path::PathBuf>) {
+    pub fn start(&mut self, project: Option<std::path::PathBuf>, citrus_manifest: Option<std::path::PathBuf>) {
         let state = &mut self.state;
+        if let Some(manifest_path) = citrus_manifest {
+            match crate::citrus::read_manifest(&manifest_path) {
+                Ok(manifest) => state.citrus = Some(manifest),
+                Err(e) => eprintln!("reading citrus manifest {}: {e:#}", manifest_path.display()),
+            }
+        }
         if let Some(path) = project {
-            state.open_project(path);
+            let is_model = path
+                .extension()
+                .and_then(|e| e.to_str())
+                .is_some_and(|e| matches!(e.to_ascii_lowercase().as_str(), "gltf" | "glb" | "fbx"));
+            if is_model {
+                state.start_model_import(path);
+            } else {
+                state.open_project(path);
+            }
             return;
         }
         match state.settings.startup {
@@ -675,6 +691,35 @@ impl App {
 }
 
 /// Upload any thumbnails that finished decoding since the last frame.
+fn citrus_kind(kind: crate::layers::MapKind) -> &'static str {
+    use crate::layers::MapKind;
+    match kind {
+        MapKind::BaseColor => "BaseColor",
+        MapKind::Roughness => "Roughness",
+        MapKind::Metallic => "Metallic",
+        MapKind::Height => "Height",
+        MapKind::Normal => "Normal",
+        MapKind::Emissive => "Emissive",
+        MapKind::Opacity => "Opacity",
+        MapKind::Ao => "Ao",
+    }
+}
+
+fn kind_from_str(s: &str) -> Option<crate::layers::MapKind> {
+    use crate::layers::MapKind;
+    Some(match s {
+        "BaseColor" => MapKind::BaseColor,
+        "Roughness" => MapKind::Roughness,
+        "Metallic" => MapKind::Metallic,
+        "Height" => MapKind::Height,
+        "Normal" => MapKind::Normal,
+        "Emissive" => MapKind::Emissive,
+        "Opacity" => MapKind::Opacity,
+        "Ao" => MapKind::Ao,
+        _ => return None,
+    })
+}
+
 fn upload_thumbnails(
     ctx: &egui::Context,
     loader: &crate::library::ThumbnailLoader,
@@ -1875,6 +1920,80 @@ impl AppState {
     }
 
     /// Parse a model on a worker; `poll_import` adopts it when done.
+    fn export_to_citrus(&mut self) {
+        let Some(manifest) = self.citrus.clone() else {
+            self.ui.status = "No Citrus exchange open".into();
+            return;
+        };
+        let maps = crate::layers::MapKind::ALL.to_vec();
+        let contents = crate::export::ExportContents {
+            flattened: true,
+            shader_masks: false,
+            layers: false,
+            layer_masks: false,
+            scope: crate::export::LayerScope::All,
+            size: None,
+        };
+        let include = vec![true; self.texture_sets.len()];
+        let dir = manifest.return_dir.clone();
+        let written = match crate::export::export_all(
+            &self.gpu,
+            &mut self.texture_sets,
+            &include,
+            "citrus",
+            &maps,
+            &contents,
+            &dir,
+        ) {
+            Ok(w) => w,
+            Err(e) => {
+                self.ui.status = format!("Export to Citrus failed: {e:#}");
+                return;
+            }
+        };
+        let mut return_maps = Vec::new();
+        for (slot, chunk) in written.chunks(maps.len()).enumerate() {
+            for (kind, file) in maps.iter().zip(chunk) {
+                if *kind == crate::layers::MapKind::Height {
+                    continue;
+                }
+                return_maps.push(crate::citrus::ReturnMap {
+                    slot,
+                    kind: citrus_kind(*kind).to_owned(),
+                    file: file.clone(),
+                });
+            }
+        }
+        let ret = crate::citrus::CitrusReturn {
+            object_id: manifest.object_id.clone(),
+            maps: return_maps,
+        };
+        match crate::citrus::write_return(&dir, &ret) {
+            Ok(()) => {
+                self.ui.status = format!("Exported {} maps to Citrus", ret.maps.len());
+            }
+            Err(e) => {
+                self.ui.status = format!("Writing citrus_return.json failed: {e:#}");
+            }
+        }
+    }
+
+    fn apply_citrus_textures(&mut self) {
+        let Some(manifest) = self.citrus.clone() else { return };
+        for map in &manifest.textures {
+            let Some(kind) = kind_from_str(&map.kind) else { continue };
+            let Some(set) = self.texture_sets.get_mut(map.slot) else { continue };
+            let file = manifest.return_dir.join(&map.file);
+            match crate::library::load_map(&file) {
+                Ok(image) => {
+                    let name = format!("Citrus · {}", map.kind);
+                    set.layers.import_map_layer(name, kind, &image);
+                }
+                Err(e) => eprintln!("loading citrus map {}: {e:#}", file.display()),
+            }
+        }
+    }
+
     fn start_model_import(&mut self, path: std::path::PathBuf) {
         if self.import.is_some() {
             self.ui.status = "An import is already running".into();
@@ -1939,6 +2058,7 @@ impl AppState {
                 self.reset_pose();
                 // Old bakes/paint don't apply to a new mesh.
                 self.rebuild_texture_sets();
+                self.apply_citrus_textures();
                 self.selection.clear();
                 self.isolate_backup = None;
                 self.isolate_camera = None;
@@ -3545,7 +3665,7 @@ impl App {
             event_loop,
             &self.context,
             &WindowDescriptor {
-                title: "ZestPaint — Library".into(),
+                title: "ZestSurface — Library".into(),
                 width: 1280.0,
                 height: 800.0,
                 ..Default::default()
@@ -3596,7 +3716,7 @@ impl ApplicationHandler for App {
             event_loop,
             &self.context,
             &WindowDescriptor {
-                title: "ZestPaint".into(),
+                title: "ZestSurface".into(),
                 width: 1600.0,
                 height: 900.0,
                 ..Default::default()

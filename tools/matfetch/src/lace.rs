@@ -281,7 +281,7 @@ pub fn generate(root: &Path, size: u32) -> Result<usize> {
             source: "procedural".into(),
             kind: "material".into(),
             license: "CC0".into(),
-            authors: vec!["zestpaint matfetch".into()],
+            authors: vec!["zestsurface matfetch".into()],
             page: String::new(),
             variant: format!("{size}px"),
             tags: lace.tags.iter().map(|s| s.to_string()).collect(),

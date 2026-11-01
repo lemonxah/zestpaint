@@ -1,4 +1,4 @@
-ZestPaint
+ZestSurface
 Copyright (C) 2026 Ryno Kotze
 
 This program is free software: you can redistribute it and/or modify it
@@ -22,20 +22,20 @@ Additional term (GPLv3 section 7(b)): attribution
 Any copy of this program, any modified version of it, and any work based on
 it that you convey must preserve the following author attribution:
 
-    Based on ZestPaint by Ryno Kotze
+    Based on ZestSurface by Ryno Kotze
 
 It must appear in this NOTICE file (or an equivalent file shipped with the
 source and with binaries), and, where the program displays Appropriate
 Legal Notices in its user interface (for example an About or Help screen),
 it must be shown there too. You may add your own credits alongside it, but
 you may not remove it or present the work as if it had no connection to
-ZestPaint.
+ZestSurface.
 
 
 Third-party material
 --------------------
 
-ZestPaint depends on Rust crates under their own licenses (mostly MIT and
+ZestSurface depends on Rust crates under their own licenses (mostly MIT and
 Apache-2.0; run `cargo metadata` or a tool such as `cargo about` for the
 full list). Apache-2.0 code is compatible with GPLv3.
 

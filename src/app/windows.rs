@@ -153,8 +153,8 @@ impl AppState {
 
         if self.ui.about_open {
             let mut open = true;
-            egui::Window::new("About ZestPaint").open(&mut open).collapsible(false).resizable(false).show(ctx, |ui| {
-                ui.label(RichText::new("ZestPaint").font(theme::semibold(theme::TITLE_SIZE)));
+            egui::Window::new("About ZestSurface").open(&mut open).collapsible(false).resizable(false).show(ctx, |ui| {
+                ui.label(RichText::new("ZestSurface").font(theme::semibold(theme::TITLE_SIZE)));
                 ui.label(format!("Version {}", env!("CARGO_PKG_VERSION")));
                 ui.label(RichText::new("A 3D texture painter in Rust on Vulkan, with an egui interface.").color(theme::TEXT_MUTED));
                 ui.label(

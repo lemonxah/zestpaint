@@ -1,7 +1,7 @@
 //! Where poses come from: animation files (Mixamo or Quaternius FBX/glTF,
 //! CMU mocap BVH), sampled into rig-neutral [`HumanPose`]s a frame at a
 //! time; a few built-in photography poses; and the pose library, JSON files
-//! in `~/.zestpaint/library/poses`.
+//! in `~/.zestsurface/library/poses`.
 
 use std::path::{Path, PathBuf};
 
@@ -83,10 +83,10 @@ pub fn load(path: &Path) -> Result<PoseSource> {
         "fbx" => load_fbx(path),
         "glb" | "gltf" => load_gltf(path),
         "bvh" => load_bvh(path),
-        _ => bail!("not an animation file ZestPaint reads (.fbx, .glb, .gltf, .bvh)"),
+        _ => bail!("not an animation file ZestSurface reads (.fbx, .glb, .gltf, .bvh)"),
     }?;
     if source.map[crate::skeleton::HIPS].is_none() {
-        bail!("{} has no humanoid skeleton ZestPaint recognises (it needs hips, legs and a head)", source.file_name());
+        bail!("{} has no humanoid skeleton ZestSurface recognises (it needs hips, legs and a head)", source.file_name());
     }
     if source.clips.is_empty() {
         bail!("{} has no animation or pose in it", source.file_name());
@@ -633,7 +633,7 @@ pub fn builtin() -> Vec<HumanPose> {
 
 // --- the pose library ---------------------------------------------------------------
 
-/// `~/.zestpaint/library/poses`.
+/// `~/.zestsurface/library/poses`.
 pub fn library_dir() -> PathBuf {
     crate::library::library_dir().parent().map(|p| p.join("poses")).unwrap_or_else(|| PathBuf::from("poses"))
 }
@@ -751,12 +751,12 @@ mod tests {
 
 #[cfg(test)]
 mod real_tests {
-    /// Real-file check: ZESTPAINT_TEST_ANIM=/path/to/clip.(fbx|glb|bvh)
+    /// Real-file check: ZESTSURFACE_TEST_ANIM=/path/to/clip.(fbx|glb|bvh)
     /// reads as a pose source with humanoid bones and clips.
     #[test]
     fn load_real_animation() {
-        let Ok(path) = std::env::var("ZESTPAINT_TEST_ANIM") else {
-            eprintln!("ZESTPAINT_TEST_ANIM not set; skipping");
+        let Ok(path) = std::env::var("ZESTSURFACE_TEST_ANIM") else {
+            eprintln!("ZESTSURFACE_TEST_ANIM not set; skipping");
             return;
         };
         let source = super::load(std::path::Path::new(&path)).unwrap();

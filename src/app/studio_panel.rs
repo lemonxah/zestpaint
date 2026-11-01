@@ -501,7 +501,7 @@ impl AppState {
             ui.label(RichText::new("This model has no skeleton, so it can't be posed.").color(theme::TEXT_MUTED));
             if self.project_path.is_some() {
                 ui.label(
-                    RichText::new("Projects saved before ZestPaint kept bones can take them from the model file; the painting stays.")
+                    RichText::new("Projects saved before ZestSurface kept bones can take them from the model file; the painting stays.")
                         .color(theme::TEXT_DIM),
                 );
                 if let Some(job) = &self.shape_import {

@@ -155,7 +155,7 @@ pub fn save_stamp(
         source: source.to_string(),
         kind: "brush".into(),
         license: "generated".into(),
-        authors: vec!["zestpaint assistant".into()],
+        authors: vec!["zestsurface assistant".into()],
         page: String::new(),
         variant: format!("{}x{}", img.width(), img.height()),
         tags,

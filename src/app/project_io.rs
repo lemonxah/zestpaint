@@ -65,9 +65,12 @@ fn file_name(path: &Path) -> String {
     path.file_name().unwrap_or_default().to_string_lossy().to_string()
 }
 
-/// `name.zestpaint`, whatever extension (if any) was typed.
+/// `name.zestsurface`, whatever extension (if any) was typed. A
+/// `.zestpaint` name is left as it is.
 fn with_project_extension(path: PathBuf) -> PathBuf {
-    if path.extension().is_some_and(|e| e.eq_ignore_ascii_case(project::EXTENSION)) {
+    if path.extension().is_some_and(|e| {
+        e.eq_ignore_ascii_case(project::EXTENSION) || e.eq_ignore_ascii_case(project::LEGACY_EXTENSION)
+    }) {
         path
     } else {
         let mut name = path.file_name().unwrap_or_default().to_os_string();
@@ -156,7 +159,7 @@ impl AppState {
             (Some(path), false) => path.clone(),
             _ => {
                 let mut dialog = rfd::FileDialog::new()
-                    .add_filter("ZestPaint project", &[project::EXTENSION])
+                    .add_filter("ZestSurface project", &[project::EXTENSION, project::LEGACY_EXTENSION])
                     .set_file_name(format!("{}.{}", self.ui.model_name, project::EXTENSION));
                 if let Some(dir) = self.project_path.as_ref().and_then(|p| p.parent()) {
                     dialog = dialog.set_directory(dir);
@@ -221,7 +224,7 @@ impl AppState {
             return;
         }
         let Some(path) = rfd::FileDialog::new()
-            .add_filter("ZestPaint project", &[project::EXTENSION])
+            .add_filter("ZestSurface project", &[project::EXTENSION, project::LEGACY_EXTENSION])
             .pick_file()
         else {
             return;

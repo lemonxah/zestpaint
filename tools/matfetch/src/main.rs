@@ -1,4 +1,4 @@
-//! matfetch — mirror CC0 PBR materials and stamp brushes for zestpaint.
+//! matfetch — mirror CC0 PBR materials and stamp brushes for zestsurface.
 //!
 //! Sources: Poly Haven (textures) and ambientCG (materials, decals, atlases,
 //! brushes), plus a set of procedurally generated stitch/seam stamps.
@@ -13,7 +13,7 @@ use anyhow::{Context as _, Result, bail};
 use matfetch::{brushes, catalog, download, http, lace, load_index, save_index, splatter};
 
 const USAGE: &str = "\
-matfetch — CC0 material & brush mirror for zestpaint
+matfetch — CC0 material & brush mirror for zestsurface
 
 USAGE:
   matfetch <command> [options]
@@ -26,7 +26,7 @@ COMMANDS:
   lace                  Generate procedural lace and net materials
   splatter              Generate procedural splatter stamps (splat/drip/spray/droplets/smear)
   status                Show what is on disk
-  link                  Point ~/.zestpaint/library at the library root
+  link                  Point ~/.zestsurface/library at the library root
 
 OPTIONS:
   --out <dir>           Library root (default: ~/storage/materials)
@@ -193,7 +193,14 @@ fn cmd_status(args: &Args, agent: &ureq::Agent) -> Result<()> {
 
 fn cmd_link(args: &Args) -> Result<()> {
     let home = std::env::var_os("HOME").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("."));
-    let lib = home.join(".zestpaint/library");
+    let lib = home.join(".zestsurface/library");
+    let old = home.join(".zestpaint/library");
+    if old.exists() && !lib.exists() {
+        if let Some(parent) = lib.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        let _ = std::fs::rename(&old, &lib);
+    }
     std::fs::create_dir_all(&lib)?;
     for sub in ["materials", "brushes"] {
         let link = lib.join(sub);

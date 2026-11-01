@@ -67,7 +67,7 @@ pub(super) struct AssistantPanel {
     captures: Vec<Capture>,
     usage: (u64, u64, u64),
     comfy_status: String,
-    /// Claude Code's way in (HTTP MCP endpoint + `zestpaint mcp` bridge), when on.
+    /// Claude Code's way in (HTTP MCP endpoint + `zestsurface mcp` bridge), when on.
     bridge: Option<assistant::bridge::Bridge>,
     bridge_status: String,
     /// An `import_model` call waiting for its import to finish.
@@ -124,7 +124,7 @@ impl AssistantPanel {
         self.settings.save(&self.settings_path)
     }
 
-    /// Serving MCP over HTTP (the bridge alone only reaches `zestpaint mcp`).
+    /// Serving MCP over HTTP (the bridge alone only reaches `zestsurface mcp`).
     fn mcp_serving(&self) -> bool {
         self.bridge.as_ref().is_some_and(|b| b.http.is_ok())
     }
@@ -132,7 +132,7 @@ impl AssistantPanel {
     /// The one-time Claude Code registration for the HTTP endpoint.
     fn mcp_add_command(&self) -> String {
         format!(
-            "claude mcp add --scope user --transport http zestpaint {} --header \"Authorization: Bearer {}\"",
+            "claude mcp add --scope user --transport http zestsurface {} --header \"Authorization: Bearer {}\"",
             assistant::bridge::http_url(self.settings.mcp_port),
             self.settings.mcp_token
         )
@@ -1503,7 +1503,7 @@ impl AppState {
             let env = std::env::var("ANTHROPIC_API_KEY").is_ok_and(|k| !k.is_empty());
             ui.label(
                 RichText::new(match (s.api_key.trim().is_empty(), env) {
-                    (false, _) => "Using the key above (stored in ~/.config/zestpaint/assistant.json)",
+                    (false, _) => "Using the key above (stored in ~/.config/zestsurface/assistant.json)",
                     (true, true) => "Using $ANTHROPIC_API_KEY",
                     (true, false) => "No key yet — get one at console.anthropic.com, or use Claude Code (below)",
                 })
@@ -1615,7 +1615,7 @@ impl AppState {
         let (status, color) = match &self.assistant.bridge {
             Some(bridge) => match &bridge.http {
                 Ok(port) => (format!("Running at {}", assistant::bridge::http_url(*port)), theme::OK_FG),
-                Err(e) => (format!("HTTP endpoint failed: {e}. Only `zestpaint mcp` (stdio) can connect."), theme::WARN_FG),
+                Err(e) => (format!("HTTP endpoint failed: {e}. Only `zestsurface mcp` (stdio) can connect."), theme::WARN_FG),
             },
             None if !self.assistant.bridge_status.is_empty() => (self.assistant.bridge_status.clone(), theme::WARN_FG),
             None => ("Stopped".into(), theme::TEXT_MUTED),
@@ -1638,7 +1638,7 @@ impl AppState {
             let cmd = self.assistant.mcp_add_command();
             ui.label(RichText::new("Register once with Claude Code (run in a terminal):").small().color(theme::TEXT_MUTED));
             ui.horizontal(|ui| {
-                ui.label(RichText::new("claude mcp add --transport http zestpaint …").small().monospace().color(theme::TEXT_DIM))
+                ui.label(RichText::new("claude mcp add --transport http zestsurface …").small().monospace().color(theme::TEXT_DIM))
                     .on_hover_text(&cmd);
                 if ui.small_button("Copy").on_hover_text("Copy the full command (it contains the access token)").clicked() {
                     ui.ctx().copy_text(cmd.clone());

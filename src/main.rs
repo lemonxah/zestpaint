@@ -5,6 +5,7 @@ mod config;
 mod bakers;
 mod brushfile;
 mod camera;
+mod citrus;
 mod connectivity;
 mod environment;
 mod export;
@@ -32,19 +33,28 @@ fn main() -> Result<(), winit::error::EventLoopError> {
     // Before anything reads a settings file (the MCP server reads the
     // bridge's discovery file too).
     config::migrate_legacy();
-    // `zestpaint mcp`: the MCP server Claude Code launches. It forwards tool
+    library::migrate_library();
+    // `zestsurface mcp`: the MCP server Claude Code launches. It forwards tool
     // calls to the running editor and never opens a window itself.
     if std::env::args().nth(1).as_deref() == Some("mcp") {
         if let Err(e) = assistant::mcp::serve_stdio() {
-            eprintln!("zestpaint mcp: {e:#}");
+            eprintln!("zestsurface mcp: {e:#}");
             std::process::exit(1);
         }
         return Ok(());
     }
+    let mut citrus_manifest: Option<std::path::PathBuf> = None;
+    let mut path: Option<std::path::PathBuf> = None;
+    let mut args = std::env::args_os().skip(1);
+    while let Some(arg) = args.next() {
+        if arg == "--citrus" {
+            citrus_manifest = args.next().map(Into::into);
+        } else if path.is_none() {
+            path = Some(arg.into());
+        }
+    }
     let event_loop = winit::event_loop::EventLoop::new().unwrap();
     let mut app = app::App::new();
-    // `zestpaint file.zestpaint` opens a project; otherwise the startup
-    // setting decides (welcome screen, last project or the sphere).
-    app.start(std::env::args_os().nth(1).map(Into::into));
+    app.start(path, citrus_manifest);
     event_loop.run_app(&mut app)
 }

@@ -679,7 +679,7 @@ mod tests {
             ]
         );
 
-        let dir = std::env::temp_dir().join(format!("zestpaint-layer-export-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("zestsurface-layer-export-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let written = export_all(&gpu, &mut sets, &[true], "MyAvatar", &MapKind::ALL, &contents, &dir).unwrap();
         assert_eq!(written, planned);

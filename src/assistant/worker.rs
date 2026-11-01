@@ -16,7 +16,7 @@ use super::{EditorCall, Event, Settings, ToolOutput};
 /// Tool rounds per user message before the worker stops and asks.
 const MAX_ROUNDS: usize = 40;
 
-const INTRO: &str = "You are the assistant built into ZestPaint, a Substance-Painter-style 3D texture painting app (layers, masks, PBR channels, brushes, stamps). The user is usually painting textures for clothing and avatars (often VR avatars). You operate the editor through tools; the user does the actual brush work in the viewport.";
+const INTRO: &str = "You are the assistant built into ZestSurface, a Substance-Painter-style 3D texture painting app (layers, masks, PBR channels, brushes, stamps). The user is usually painting textures for clothing and avatars (often VR avatars). You operate the editor through tools; the user does the actual brush work in the viewport.";
 
 const ATTACHMENTS: &str = "Images you receive: the user's messages may carry a viewport screenshot (what they see right now) and the active texture set's maps — the material's own base colour texture and the composite of the painted layers (UV layout space; black where nothing is painted). Use them to understand what \"here\", \"this\" or \"fix that\" means, and capture_viewport to check your own changes.";
 

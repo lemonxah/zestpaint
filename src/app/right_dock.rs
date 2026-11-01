@@ -298,7 +298,7 @@ impl AppState {
             }
             ui.label(
                 RichText::new(if self.project_path.is_some() {
-                    "No blendshapes in this project — it was saved before ZestPaint kept them. Take them from the model file; your painting stays."
+                    "No blendshapes in this project — it was saved before ZestSurface kept them. Take them from the model file; your painting stays."
                 } else {
                     "This model has no blendshapes."
                 })

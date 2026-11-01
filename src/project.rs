@@ -1,4 +1,4 @@
-//! Project files (`.zestpaint`): the whole document, saved so it can be
+//! Project files (`.zestsurface`): the whole document, saved so it can be
 //! opened again and painted on exactly where it was left.
 //!
 //! A project is a zip archive:
@@ -43,8 +43,11 @@ use crate::mesh::{MeshData, Vertex3D};
 use crate::scene::{ImageData, MaterialData, ModelData};
 
 /// File extension, without the dot.
-pub const EXTENSION: &str = "zestpaint";
-const FORMAT_TAG: &str = "zestpaint-project";
+pub const EXTENSION: &str = "zestsurface";
+/// Projects saved while the app was still called ZestPaint.
+pub const LEGACY_EXTENSION: &str = "zestpaint";
+const FORMAT_TAG: &str = "zestsurface-project";
+const LEGACY_FORMAT_TAG: &str = "zestpaint-project";
 /// Bumped when the layout changes in a way older builds cannot read.
 /// 2: more blend modes, clipping, mask on/off.
 /// 3: matcaps are layers (each with its own mask), not two slots per set.
@@ -672,7 +675,7 @@ pub fn read(path: &Path) -> Result<LoadedProject> {
     let file = std::fs::File::open(path)
         .with_context(|| format!("could not open {}", path.display()))?;
     let mut zip = zip::ZipArchive::new(std::io::BufReader::new(file))
-        .context("not a ZestPaint project (not a zip archive)")?;
+        .context("not a ZestSurface project (not a zip archive)")?;
     let read_entry = |zip: &mut zip::ZipArchive<_>, name: &str| -> Result<Vec<u8>> {
         let mut entry = zip
             .by_name(name)
@@ -684,12 +687,12 @@ pub fn read(path: &Path) -> Result<LoadedProject> {
 
     let manifest: Manifest = serde_json::from_slice(&read_entry(&mut zip, "project.json")?)
         .context("project.json is damaged")?;
-    if manifest.format != FORMAT_TAG {
-        bail!("not a ZestPaint project");
+    if manifest.format != FORMAT_TAG && manifest.format != LEGACY_FORMAT_TAG {
+        bail!("not a ZestSurface project");
     }
     if manifest.version > VERSION {
         bail!(
-            "this project was saved by a newer ZestPaint (format {}, this build reads {VERSION})",
+            "this project was saved by a newer ZestSurface (format {}, this build reads {VERSION})",
             manifest.version
         );
     }
@@ -1371,9 +1374,9 @@ mod tests {
         // Base colour, roughness and the mask of layer 0; nothing on layer 1.
         assert_eq!(stored, 3, "only non-empty textures are stored");
 
-        let dir = std::env::temp_dir().join(format!("zestpaint-project-test-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("zestsurface-project-test-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
-        let path = dir.join("test.zestpaint");
+        let path = dir.join("test.zestsurface");
         write(snapshot, &path).unwrap();
         let loaded = read(&path).unwrap();
         assert_eq!(loaded.resolution(), Some(res));
@@ -1474,16 +1477,16 @@ mod tests {
 
     /// How well a real project's meshes match its model file's blendshapes
     /// (read-only):
-    ///   ZESTPAINT_TEST_PROJECT=a.zestpaint ZESTPAINT_TEST_FBX=a.fbx \
+    ///   ZESTSURFACE_TEST_PROJECT=a.zestsurface ZESTSURFACE_TEST_FBX=a.fbx \
     ///   cargo test --release shapes_match_real_project -- --ignored --nocapture
-    /// Bones for a project saved before ZestPaint kept them, from its model
+    /// Bones for a project saved before ZestSurface kept them, from its model
     /// file: every rigged part matches, every vertex gets weights.
-    ///   ZESTPAINT_TEST_PROJECT=… ZESTPAINT_TEST_FBX=…
+    ///   ZESTSURFACE_TEST_PROJECT=… ZESTSURFACE_TEST_FBX=…
     ///   cargo test --release skins_match_real_project -- --ignored --nocapture
     #[test]
     #[ignore = "needs a real project and model file"]
     fn skins_match_real_project() {
-        let (Ok(project), Ok(fbx)) = (std::env::var("ZESTPAINT_TEST_PROJECT"), std::env::var("ZESTPAINT_TEST_FBX")) else {
+        let (Ok(project), Ok(fbx)) = (std::env::var("ZESTSURFACE_TEST_PROJECT"), std::env::var("ZESTSURFACE_TEST_FBX")) else {
             return;
         };
         let gpu = crate::environment::test_gpu::context().unwrap();
@@ -1510,7 +1513,7 @@ mod tests {
     #[test]
     #[ignore = "needs a real project and model file"]
     fn shapes_match_real_project() {
-        let (Ok(project), Ok(fbx)) = (std::env::var("ZESTPAINT_TEST_PROJECT"), std::env::var("ZESTPAINT_TEST_FBX")) else {
+        let (Ok(project), Ok(fbx)) = (std::env::var("ZESTSURFACE_TEST_PROJECT"), std::env::var("ZESTSURFACE_TEST_FBX")) else {
             return;
         };
         let gpu = crate::environment::test_gpu::context().unwrap();
@@ -1568,7 +1571,7 @@ mod tests {
 
 /// Where a real project's VRAM goes once opened, and what its imported maps
 /// would cost uploaded the old way (plain RGBA8, no mips). Run with
-/// `ZESTPAINT_TEST_PROJECT=<file.zestpaint> cargo test --release
+/// `ZESTSURFACE_TEST_PROJECT=<file.zestsurface> cargo test --release
 /// vram_of_real_project -- --ignored --nocapture`.
 #[cfg(test)]
 mod vram_bench {
@@ -1577,8 +1580,8 @@ mod vram_bench {
     #[test]
     #[ignore]
     fn vram_of_real_project() {
-        let Ok(path) = std::env::var("ZESTPAINT_TEST_PROJECT") else {
-            eprintln!("ZESTPAINT_TEST_PROJECT not set; skipping");
+        let Ok(path) = std::env::var("ZESTSURFACE_TEST_PROJECT") else {
+            eprintln!("ZESTSURFACE_TEST_PROJECT not set; skipping");
             return;
         };
         let Some(gpu) = crate::environment::test_gpu::context() else { return };

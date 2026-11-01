@@ -16,6 +16,7 @@ pub enum Cmd {
     SaveProjectAs,
     ImportMaps,
     ExportMaps,
+    ExportToCitrus,
     LoadHdri,
     Quit,
     // Edit
@@ -128,6 +129,7 @@ pub fn menus() -> Vec<(&'static str, Vec<Item>)> {
                 S,
                 C(ImportMaps),
                 C(ExportMaps),
+                C(ExportToCitrus),
                 C(ExportLayer),
                 C(ExportLayerMask),
                 S,
@@ -304,6 +306,7 @@ impl Cmd {
             SaveProjectAs => "Save project as…".into(),
             ImportMaps => "Import maps…".into(),
             ExportMaps => "Export maps…".into(),
+            ExportToCitrus => "Export to Citrus".into(),
             LoadHdri => "Load HDRI environment…".into(),
             Quit => "Quit".into(),
             Undo => "Undo".into(),
@@ -382,7 +385,7 @@ impl Cmd {
             ResetLayout => "Reset layout".into(),
             Welcome => "Welcome screen".into(),
             ToolGestures => "Tool gestures".into(),
-            About => "About ZestPaint".into(),
+            About => "About ZestSurface".into(),
             Tool(tool) => format!("Tool: {}", super::shell::tool_name(tool)),
             CommandSearch => "Search commands".into(),
         }
@@ -394,7 +397,7 @@ impl Cmd {
         use Cmd::*;
         Some(match self {
             OpenModel | ImportMaps | LoadHdri | ImportBrushSet | ImportBrushFolder => icons::OPEN,
-            ExportMaps | ExportLayer | ExportLayerMask | SaveProject | SaveProjectAs => icons::EXPORT,
+            ExportMaps | ExportLayer | ExportLayerMask | ExportToCitrus | SaveProject | SaveProjectAs => icons::EXPORT,
             OpenProject | LoadMaskImage => icons::OPEN,
             Undo => icons::UNDO,
             Redo => icons::REDO,
@@ -590,6 +593,7 @@ impl AppState {
             SaveProjectAs => self.save_project(true),
             ImportMaps => self.pick_import_maps(),
             ExportMaps => self.ui.export_open = true,
+            ExportToCitrus => self.export_to_citrus(),
             LoadHdri => self.open_hdri_dialog(),
             Quit => ctx.send_viewport_cmd(egui::ViewportCommand::Close),
             Undo => self.undo(),

@@ -270,12 +270,12 @@ fn mix(a: [f32; 3], b: [f32; 3], t: f32) -> [f32; 3] {
 mod tests {
     use super::*;
 
-    /// `ZESTPAINT_MATCAP_DIR=/some/dir cargo test dump_builtins -- --ignored`
+    /// `ZESTSURFACE_MATCAP_DIR=/some/dir cargo test dump_builtins -- --ignored`
     /// writes the built-ins as PNGs, to look at them.
     #[test]
     #[ignore]
     fn dump_builtins() {
-        let dir = std::path::PathBuf::from(std::env::var("ZESTPAINT_MATCAP_DIR").expect("set ZESTPAINT_MATCAP_DIR"));
+        let dir = std::path::PathBuf::from(std::env::var("ZESTSURFACE_MATCAP_DIR").expect("set ZESTSURFACE_MATCAP_DIR"));
         for (name, _, _) in BUILTINS {
             let img = builtin(name).unwrap();
             image::RgbaImage::from_raw(img.width, img.height, img.rgba.to_vec()).unwrap().save(dir.join(format!("{name}.png"))).unwrap();

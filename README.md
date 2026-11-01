@@ -1,6 +1,6 @@
-# ZestPaint
+# ZestSurface
 
-ZestPaint is a 3D texture-painting app in the spirit of Adobe Substance 3D
+ZestSurface is a 3D texture-painting app in the spirit of Adobe Substance 3D
 Painter. It is written from scratch in Rust on Vulkan (through [vulkano]),
 with an [egui] interface, and runs natively on Linux.
 
@@ -12,16 +12,16 @@ of that it has a studio for posing and rendering rigged characters, masks
 for toon shaders, a built-in AI assistant, and an MCP server so Claude Code
 can drive the editor.
 
-![Workspace](docs/zestpaint-ui-handover/screens/01-workspace-paint-tool.png)
+![Workspace](docs/zestsurface-ui-handover/screens/01-workspace-paint-tool.png)
 
 ---
 
 ## How it is like Substance Painter
 
-If you know Substance Painter, most of ZestPaint will feel familiar. The
+If you know Substance Painter, most of ZestSurface will feel familiar. The
 core workflow is the same:
 
-| Substance Painter | ZestPaint |
+| Substance Painter | ZestSurface |
 | --- | --- |
 | **Texture sets** per material | Same. An FBX body mesh with Body / Face / Eyes materials becomes three independent sets, each with its own layers, bakes and resolution. |
 | **Layer stack** of paint and fill layers | Paint layers and fill layers with opacity, blend modes, masks, duplicate / merge / reorder. |
@@ -36,13 +36,13 @@ core workflow is the same:
 | **UDIM** | Multi-tile UVs split into one texture set per tile at import. |
 | **Shelf** of materials and brushes | Material and brush library window, with tags, search and thumbnails. |
 | **Export** with naming per map and per set | Export dialog with map, set and size choices, presets, and per-layer / per-mask export. |
-| **Project file** | `.zestpaint` project files that store everything needed to keep painting. |
+| **Project file** | `.zestsurface` project files that store everything needed to keep painting. |
 
 ---
 
 ## How it differs from Substance Painter
 
-### What ZestPaint adds or does differently
+### What ZestSurface adds or does differently
 
 - **Free and open source (GPLv3), Linux-native.** No subscription and no
   account. It is a Rust + Vulkan app you build yourself.
@@ -87,12 +87,12 @@ core workflow is the same:
 - **One undo history for the whole document.** Strokes, layer settings,
   fills, bakes, visibility, material slots and UV unwraps are all undoable,
   limited by a RAM budget rather than a fixed step count.
-- **Open project format:** a `.zestpaint` file is a zip of a JSON manifest,
+- **Open project format:** a `.zestsurface` file is a zip of a JSON manifest,
   meshes, and raw half-float textures.
 - **Built-in UV auto-unwrap** ([xatlas]) for one texture set at a time,
   for models with missing or overlapping UVs.
 
-### What Substance Painter has that ZestPaint doesn't (yet)
+### What Substance Painter has that ZestSurface doesn't (yet)
 
 - **No procedural Substance materials.** There's no node graph and no
   `.sbsar` support. Materials are bitmap texture folders (ambientCG / Poly
@@ -135,18 +135,18 @@ core workflow is the same:
 - **Brushes:** hard / soft / airbrush / chalk / spatter / bristle presets,
   greyscale or colour tips, square stamps with rotation, Line and Stamp
   stroke modes.
-- **Import maps as layers:** PNGs (including ZestPaint's own per-layer
+- **Import maps as layers:** PNGs (including ZestSurface's own per-layer
   exports) come back as new layers. Importing never disturbs existing
   layers.
 - **VRAM-aware:** a layer only gets a texture for a channel once that
   channel is painted. Hidden sets release their composites. The status bar
-  shows what the driver says ZestPaint holds, with a breakdown on hover.
+  shows what the driver says ZestSurface holds, with a breakdown on hover.
 
 ## Interface
 
 **The left side is how you paint, and the right side is what you paint
 into.** The viewport only carries overlays about the view itself. The full
-design is in `docs/zestpaint-ui-handover/`.
+design is in `docs/zestsurface-ui-handover/`.
 
 - **Menu bar:** File, Edit, View, Layer, Bake, Library, Window, Help.
   **Ctrl K** opens a command search.
@@ -192,16 +192,16 @@ cargo run --release
 
 You need a Vulkan-capable GPU and driver. The first build compiles the
 shaders through `vulkano-shaders`. To open a project from the command line,
-run `zestpaint file.zestpaint`.
+run `zestsurface file.zestsurface`.
 
-When it starts without a file, ZestPaint shows a welcome screen where you
+When it starts without a file, ZestSurface shows a welcome screen where you
 can open a model or project, or pick a recent one. In Preferences you can
 choose to reopen the last project or start on the default sphere instead.
 
 ### Material and brush library
 
-Materials live in `~/.zestpaint/library/materials/<name>/` and brushes in
-`~/.zestpaint/library/brushes/`. The scanner understands ambientCG, Poly
+Materials live in `~/.zestsurface/library/materials/<name>/` and brushes in
+`~/.zestsurface/library/brushes/`. The scanner understands ambientCG, Poly
 Haven and cgbookcase file naming. To fill the library:
 
 ```sh
@@ -216,13 +216,13 @@ BVH motion capture.
 
 ### Settings
 
-Settings live in `~/.config/zestpaint/` (or `$XDG_CONFIG_HOME/zestpaint/`):
+Settings live in `~/.config/zestsurface/` (or `$XDG_CONFIG_HOME/zestsurface/`):
 
 | File | Contents |
 | --- | --- |
 | `settings.json` | startup behaviour (`welcome`, `last_project`, `default_scene`) and `undo_budget_gb` |
 | `assistant.json` | assistant model, **API keys**, ComfyUI URL, MCP port and token. Owner-only (0600). |
-| `mcp-bridge.json` | port and token of the running app, for `zestpaint mcp`. Owner-only (0600). |
+| `mcp-bridge.json` | port and token of the running app, for `zestsurface mcp`. Owner-only (0600). |
 | `comfy_workflow.json` | optional ComfyUI workflow override for image generation |
 | `recent_projects.json`, `export_presets.json`, `hidden_pieces.json` | kept by their features |
 
@@ -239,10 +239,10 @@ Open it with F9 or the sparkles button on the right edge. It can use:
 ### API keys: keep them out of the repo
 
 Keys are **never stored in this repository**, and nothing in the repo
-should ever contain one. ZestPaint looks for keys in this order:
+should ever contain one. ZestSurface looks for keys in this order:
 
 1. The key field in the assistant's settings (gear icon). It is saved to
-   `~/.config/zestpaint/assistant.json` in your home directory with
+   `~/.config/zestsurface/assistant.json` in your home directory with
    owner-only permissions.
 2. Environment variables:
    - Claude: `ANTHROPIC_API_KEY`
@@ -253,7 +253,7 @@ should ever contain one. ZestPaint looks for keys in this order:
 export GEMINI_API_KEY=...
 ```
 
-Don't paste a key into `.mcp.json`, a test, a screenshot, a `.zestpaint`
+Don't paste a key into `.mcp.json`, a test, a screenshot, a `.zestsurface`
 project you share, or an issue. Project files don't contain assistant
 settings. `.gitignore` also excludes `.env` files and stray
 `assistant.json` / `mcp-bridge.json` copies as a safety net. If a key ever
@@ -268,16 +268,16 @@ your Claude Code login.
 
 - The running app listens on a loopback port. Turn it on under Assistant ▸
   settings ▸ *Let Claude Code drive the editor*. The port and a random token
-  go into `~/.config/zestpaint/mcp-bridge.json` (owner-only).
-- `zestpaint mcp` is the stdio MCP server that Claude Code launches. It
-  forwards each tool call to the running app, and its `open_zestpaint` tool
+  go into `~/.config/zestsurface/mcp-bridge.json` (owner-only).
+- `zestsurface mcp` is the stdio MCP server that Claude Code launches. It
+  forwards each tool call to the running app, and its `open_zestsurface` tool
   starts the app if it isn't running. In this repo, `.mcp.json` registers it
   (`cargo run --release -- mcp`). To use it from anywhere, run
-  `claude mcp add --scope user zestpaint -- /path/to/zestpaint mcp`.
+  `claude mcp add --scope user zestsurface -- /path/to/zestsurface mcp`.
 - The app can also serve MCP over HTTP at `http://127.0.0.1:47821/mcp`
   (plug button in the assistant header). The settings section has the
   `claude mcp add --transport http …` command, including the bearer token.
-- `.claude/skills/zestpaint/` is a Claude Code skill with the editor's model
+- `.claude/skills/zestsurface/` is a Claude Code skill with the editor's model
   and recipes for tattoos, splatter and CC0 materials. Copy it to
   `~/.claude/skills/` to use it outside this repo.
 
@@ -308,7 +308,7 @@ in UV space, with the screen-space brush projected per texel.
 | `fbx_loader.rs`, `gltf_loader.rs`, `scene.rs`, `mesh.rs` | model import and CPU scene data |
 | `connectivity.rs`, `uv_tools.rs` | mesh shells / UV islands; xatlas auto-unwrap |
 | `library.rs`, `brushfile.rs` | material and brush library; GIMP / Photoshop brush parsing |
-| `export.rs`, `project.rs` | PNG export; `.zestpaint` project files |
+| `export.rs`, `project.rs` | PNG export; `.zestsurface` project files |
 | `matcap.rs`, `texcompress.rs`, `vram.rs` | matcaps; BC compression; VRAM tracking and budget |
 | `assistant/` | Claude / Gemini clients, assistant tools, ComfyUI, MCP server and bridge |
 | `tools/matfetch` | CLI + library: CC0 catalogue mirror and procedural lace / stitch / splatter assets |
@@ -317,13 +317,13 @@ in UV space, with the screen-space brush projected per texel.
 
 Copyright © 2026 Ryno Kotze.
 
-ZestPaint is free software under the **GNU General Public License, version
+ZestSurface is free software under the **GNU General Public License, version
 3 or (at your option) any later version**. See [LICENSE](LICENSE). You can
 use, study, modify and share it. If you distribute it, or a modified
 version, you must do so under the same license with the source available.
 
 Under GPLv3 section 7(b) there is one additional term: you must keep
-the attribution **"Based on ZestPaint by Ryno Kotze"**, as described in
+the attribution **"Based on ZestSurface by Ryno Kotze"**, as described in
 [NOTICE](NOTICE).
 
 Third-party crates and the bundled fonts (Lucide: ISC, IBM Plex: SIL OFL

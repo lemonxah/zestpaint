@@ -1,7 +1,7 @@
-// Writes a contact sheet of every splatter style when ZESTPAINT_SPLATTER_DUMP is set.
+// Writes a contact sheet of every splatter style when ZESTSURFACE_SPLATTER_DUMP is set.
 #[test]
 fn dump_splatter_sheet() {
-    let Ok(out) = std::env::var("ZESTPAINT_SPLATTER_DUMP") else { return };
+    let Ok(out) = std::env::var("ZESTSURFACE_SPLATTER_DUMP") else { return };
     let styles = matfetch::splatter::Style::ALL;
     let s = 256u32;
     let mut sheet = image::GrayImage::new(s * styles.len() as u32, s * 2);

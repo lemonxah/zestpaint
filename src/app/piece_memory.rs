@@ -1,7 +1,7 @@
 //! Which pieces were hidden in each model file, so opening the same .fbx /
 //! .gltf again picks up where you left off. Projects keep visibility
 //! themselves; this is for working straight from the model file.
-//! Stored in `~/.config/zestpaint/hidden_pieces.json`: model path → hidden sets,
+//! Stored in `~/.config/zestsurface/hidden_pieces.json`: model path → hidden sets,
 //! each named "Object · Material".
 
 use std::collections::BTreeMap;
@@ -87,7 +87,7 @@ mod tests {
 
     #[test]
     fn hidden_pieces_are_remembered_per_model() {
-        let dir = std::env::temp_dir().join(format!("zestpaint-pieces-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("zestsurface-pieces-{}", std::process::id()));
         let store = dir.join("hidden_pieces.json");
         let (a, b) = (dir.join("a.fbx"), dir.join("b.fbx"));
         remember_in(&store, &a, &["Jacket · Jacket".into(), "Hair · Hair".into()]).unwrap();

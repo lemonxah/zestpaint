@@ -4,7 +4,7 @@
 //! for blood/splat/spatter/drip finds only "Leaking001" (a moisture streak
 //! decal). Splatter is a few blobs, rays and droplets combined with a smooth
 //! union, so generate it — any seed gives a new, clean, resolution-independent
-//! stamp. Used by `matfetch splatter` and by the zestpaint assistant.
+//! stamp. Used by `matfetch splatter` and by the zestsurface assistant.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -290,7 +290,7 @@ pub fn generate_one(root: &Path, name: &str, style: Style, seed: u64, density: f
         source: "procedural".into(),
         kind: "brush".into(),
         license: "CC0".into(),
-        authors: vec!["zestpaint matfetch".into()],
+        authors: vec!["zestsurface matfetch".into()],
         page: String::new(),
         variant: format!("{size}px"),
         tags: vec!["splatter".into(), style.name().into(), "procedural".into()],
@@ -401,7 +401,7 @@ pub fn generate_flat_material(root: &Path, m: &FlatMaterial, size: u32) -> Resul
         source: "procedural".into(),
         kind: "material".into(),
         license: "CC0".into(),
-        authors: vec!["zestpaint matfetch".into()],
+        authors: vec!["zestsurface matfetch".into()],
         page: String::new(),
         variant: format!("{size}px"),
         tags: m.tags.clone(),

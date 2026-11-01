@@ -4,7 +4,7 @@
 //! tattoos, painted decals) come from a diffusion model the user runs
 //! themselves. The built-in graph is plain txt2img for SD1.5/SDXL checkpoints;
 //! anything fancier (FLUX, LoRAs, ControlNet) goes in
-//! `~/.config/zestpaint/comfy_workflow.json` — a workflow exported with "Save (API
+//! `~/.config/zestsurface/comfy_workflow.json` — a workflow exported with "Save (API
 //! Format)" whose strings `%prompt%`, `%negative%`, `%seed%`, `%width%` and
 //! `%height%` are filled in per request.
 
@@ -63,7 +63,7 @@ fn builtin_graph(job: &Job, checkpoint: &str) -> Value {
             "model": ["4", 0], "positive": ["6", 0], "negative": ["7", 0], "latent_image": ["5", 0]
         }},
         "8": {"class_type": "VAEDecode", "inputs": {"samples": ["3", 0], "vae": ["4", 2]}},
-        "9": {"class_type": "SaveImage", "inputs": {"filename_prefix": "zestpaint", "images": ["8", 0]}}
+        "9": {"class_type": "SaveImage", "inputs": {"filename_prefix": "zestsurface", "images": ["8", 0]}}
     })
 }
 
@@ -111,7 +111,7 @@ pub fn generate(job: &Job, custom_workflow: &Path, cancel: &Arc<AtomicBool>) -> 
 
     let mut resp = agent
         .post(&format!("{base}/prompt"))
-        .send_json(json!({"prompt": graph, "client_id": "zestpaint"}))
+        .send_json(json!({"prompt": graph, "client_id": "zestsurface"}))
         .with_context(|| format!("ComfyUI is not answering at {base} — is it running?"))?;
     let queued: Value = serde_json::from_str(&resp.body_mut().read_to_string()?)?;
     if let Some(err) = queued.get("error") {

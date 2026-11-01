@@ -68,7 +68,7 @@ fn show(ctx: &egui::Context, recent: &[PathBuf], startup: &mut Startup) -> Optio
     let modal = egui::Modal::new(ID.into()).frame(super::dialogs::dialog_frame()).show(ctx, |ui| {
         ui.set_width(WIDTH);
         ui.horizontal(|ui| {
-            ui.label(RichText::new("ZestPaint").font(theme::semibold(22.0)).color(theme::TEXT_STRONG));
+            ui.label(RichText::new("ZestSurface").font(theme::semibold(22.0)).color(theme::TEXT_STRONG));
             ui.label(RichText::new(format!("v{}", env!("CARGO_PKG_VERSION"))).color(theme::TEXT_DIM));
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui.add(egui::Button::new(icons::REMOVE).frame(false)).on_hover_text("Close (Esc)").clicked() {
@@ -92,7 +92,7 @@ fn show(ctx: &egui::Context, recent: &[PathBuf], startup: &mut Startup) -> Optio
                 }
                 if ui
                     .add(egui::Button::new(format!("{}  Open project…", icons::OPEN)).min_size(wide))
-                    .on_hover_text("A .zestpaint project (Ctrl Shift O)")
+                    .on_hover_text("A .zestsurface project (Ctrl Shift O)")
                     .clicked()
                 {
                     action = Some(Action::OpenProject);
@@ -125,7 +125,7 @@ fn show(ctx: &egui::Context, recent: &[PathBuf], startup: &mut Startup) -> Optio
         ui.add_space(10.0);
         ui.separator();
         ui.horizontal(|ui| {
-            ui.label(RichText::new("When ZestPaint starts").color(theme::TEXT_MUTED));
+            ui.label(RichText::new("When ZestSurface starts").color(theme::TEXT_MUTED));
             egui::ComboBox::from_id_salt("welcome_startup").selected_text(startup.label()).show_ui(ui, |ui| {
                 for option in Startup::ALL {
                     ui.selectable_value(startup, option, option.label());
@@ -225,7 +225,7 @@ mod tests {
         crate::icons::install(&ctx);
         crate::theme::apply(&ctx);
         let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1280.0, 800.0));
-        let recent: Vec<PathBuf> = (0..RECENT_SHOWN).map(|i| PathBuf::from(format!("/tmp/projects/a{i}.zestpaint"))).collect();
+        let recent: Vec<PathBuf> = (0..RECENT_SHOWN).map(|i| PathBuf::from(format!("/tmp/projects/a{i}.zestsurface"))).collect();
         let mut startup = Startup::Welcome;
         for _ in 0..3 {
             let input = egui::RawInput { screen_rect: Some(screen), ..Default::default() };

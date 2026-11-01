@@ -2278,7 +2278,7 @@ impl LayerStack {
 
     /// Push a new layer holding one imported texture map, laid out in the
     /// mesh's own UVs (no tiling). The image's alpha becomes the layer's
-    /// coverage, so a ZestPaint export imports back exactly where it was
+    /// coverage, so a ZestSurface export imports back exactly where it was
     /// painted and leaves everything else to the layers underneath. Existing
     /// layers are never touched. Returns false for maps with no layer channel.
     pub fn import_map_layer(&mut self, name: String, kind: MapKind, image: &ImageData) -> bool {

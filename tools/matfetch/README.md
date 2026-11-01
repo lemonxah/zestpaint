@@ -1,6 +1,6 @@
 # matfetch
 
-Mirrors CC0 PBR materials and stamp brushes into a local library that zestpaint
+Mirrors CC0 PBR materials and stamp brushes into a local library that zestsurface
 can read directly.
 
 Sources:
@@ -25,7 +25,7 @@ cargo build -p matfetch --release
 ./target/release/matfetch sync          # build the catalog index (~1 min)
 ./target/release/matfetch brushes       # generate the procedural stitch/seam stamps
 ./target/release/matfetch lace          # generate the procedural lace materials
-./target/release/matfetch link          # point ~/.zestpaint/library at the mirror
+./target/release/matfetch link          # point ~/.zestsurface/library at the mirror
 ./target/release/matfetch serve         # browse and download interactively
 ```
 
@@ -133,7 +133,7 @@ Searched, for the record:
 - **ArtStation / FlippedNormals / JROTools / ZBrushCentral / Pixologic** — large
   seam-and-stitch packs, free as in price but *not* CC0. They need an account and
   their terms forbid redistribution, so they cannot live in this repo. Download
-  them yourself and drop them in `~/.zestpaint/library/brushes/<name>/`.
+  them yourself and drop them in `~/.zestsurface/library/brushes/<name>/`.
 
 That scarcity is why the generator exists. Being SDF-based it is effectively
 vector: regenerate at any `--size` and the edges stay clean.

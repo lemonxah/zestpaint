@@ -495,11 +495,11 @@ fn vec4_to_array(v: ufbx::Vec4) -> [f32; 4] {
 
 #[cfg(test)]
 mod tests {
-    /// Smoke test against a real file: ZESTPAINT_TEST_FBX=/path/to/file.fbx
+    /// Smoke test against a real file: ZESTSURFACE_TEST_FBX=/path/to/file.fbx
     #[test]
     fn load_real_fbx() {
-        let Ok(path) = std::env::var("ZESTPAINT_TEST_FBX") else {
-            eprintln!("ZESTPAINT_TEST_FBX not set; skipping");
+        let Ok(path) = std::env::var("ZESTSURFACE_TEST_FBX") else {
+            eprintln!("ZESTSURFACE_TEST_FBX not set; skipping");
             return;
         };
         let models = super::load_with_progress(std::path::Path::new(&path), &|_, _, _| {})
@@ -538,13 +538,13 @@ pub(crate) fn matrix_to_mat4(m: &ufbx::Matrix) -> Mat4 {
 
 #[cfg(test)]
 mod rig_tests {
-    /// Real-file check: ZESTPAINT_TEST_FBX=/path/to/avatar.fbx. Prints the
+    /// Real-file check: ZESTSURFACE_TEST_FBX=/path/to/avatar.fbx. Prints the
     /// humanoid bones found and poses the mesh with every built-in pose,
     /// which must keep the mesh together (no vertex flung far off).
     #[test]
     fn rig_real_fbx() {
-        let Ok(path) = std::env::var("ZESTPAINT_TEST_FBX") else {
-            eprintln!("ZESTPAINT_TEST_FBX not set; skipping");
+        let Ok(path) = std::env::var("ZESTSURFACE_TEST_FBX") else {
+            eprintln!("ZESTSURFACE_TEST_FBX not set; skipping");
             return;
         };
         let mut models = super::load_with_progress(std::path::Path::new(&path), &|_, _, _| {}).unwrap();

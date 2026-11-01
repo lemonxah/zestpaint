@@ -1,11 +1,12 @@
-//! The settings folder, `$XDG_CONFIG_HOME/zestpaint` (else
-//! `~/.config/zestpaint`), and `settings.json`, the editor's own
+//! The settings folder, `$XDG_CONFIG_HOME/zestsurface` (else
+//! `~/.config/zestsurface`), and `settings.json`, the editor's own
 //! preferences. The other files there belong to their features: the
 //! assistant's `assistant.json` and `comfy_workflow.json`,
 //! `recent_projects.json`, `export_presets.json`, `hidden_pieces.json` and
-//! the MCP bridge's `mcp-bridge.json`. They used to live in `~/.zestpaint`; [`migrate_legacy`]
-//! moves them over once. The libraries stay in `~/.zestpaint/library`: they
-//! are the user's assets, not settings.
+//! the MCP bridge's `mcp-bridge.json`. They used to live in `~/.zestpaint`,
+//! then `~/.config/zestpaint`; [`migrate_legacy`] moves them over once. The
+//! libraries stay in `~/.zestsurface/library`: they are the user's assets,
+//! not settings.
 
 use std::path::{Path, PathBuf};
 
@@ -17,8 +18,8 @@ fn home() -> PathBuf {
 
 pub fn dir() -> PathBuf {
     match std::env::var_os("XDG_CONFIG_HOME").filter(|v| !v.is_empty()) {
-        Some(base) => PathBuf::from(base).join("zestpaint"),
-        None => home().join(".config/zestpaint"),
+        Some(base) => PathBuf::from(base).join("zestsurface"),
+        None => home().join(".config/zestsurface"),
     }
 }
 
@@ -27,26 +28,30 @@ pub fn file(name: &str) -> PathBuf {
     dir().join(name)
 }
 
-/// The settings files that used to live in `~/.zestpaint`.
-const LEGACY_FILES: [&str; 6] = [
-    "assistant.json",
-    "comfy_workflow.json",
-    "recent_projects.json",
-    "export_presets.json",
-    "hidden_pieces.json",
-    "mcp-bridge.json",
-];
+/// The previous settings folder, from when the app was called ZestPaint.
+fn legacy_config_dir() -> PathBuf {
+    match std::env::var_os("XDG_CONFIG_HOME").filter(|v| !v.is_empty()) {
+        Some(base) => PathBuf::from(base).join("zestpaint"),
+        None => home().join(".config/zestpaint"),
+    }
+}
 
-/// Move the settings files from `~/.zestpaint` into the settings folder,
-/// each only when the folder has none of that name yet.
+/// Move settings files into the ZestSurface folder. A file already there wins.
+/// The asset library is left where it is; [`crate::library::migrate_library`]
+/// moves that.
 pub fn migrate_legacy() {
+    migrate_from(&legacy_config_dir(), &dir());
     migrate_from(&home().join(".zestpaint"), &dir());
 }
 
 fn migrate_from(legacy: &Path, target: &Path) {
-    for name in LEGACY_FILES {
-        let (from, to) = (legacy.join(name), target.join(name));
-        if !from.is_file() || to.exists() {
+    let Ok(entries) = std::fs::read_dir(legacy) else { return };
+    for entry in entries.flatten() {
+        if entry.file_name() == "library" || !entry.path().is_file() {
+            continue;
+        }
+        let to = target.join(entry.file_name());
+        if to.exists() {
             continue;
         }
         if std::fs::create_dir_all(target).is_err() {
@@ -54,8 +59,8 @@ fn migrate_from(legacy: &Path, target: &Path) {
         }
         // A rename keeps the owner-only permissions of the key and token
         // files; across filesystems, copy (which keeps them too) and remove.
-        if std::fs::rename(&from, &to).is_err() && std::fs::copy(&from, &to).is_ok() {
-            let _ = std::fs::remove_file(&from);
+        if std::fs::rename(entry.path(), &to).is_err() && std::fs::copy(entry.path(), &to).is_ok() {
+            let _ = std::fs::remove_file(entry.path());
         }
     }
 }
@@ -154,7 +159,7 @@ mod tests {
     use super::*;
 
     fn scratch(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("zestpaint-config-{name}-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("zestsurface-config-{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         dir
@@ -168,13 +173,18 @@ mod tests {
         std::fs::create_dir_all(&legacy).unwrap();
         std::fs::write(legacy.join("recent_projects.json"), "[\"a\"]").unwrap();
         std::fs::write(legacy.join("assistant.json"), "old").unwrap();
+        std::fs::write(legacy.join("settings.json"), "{}").unwrap();
+        std::fs::create_dir_all(legacy.join("library")).unwrap();
+        std::fs::write(legacy.join("library/keep.txt"), "assets").unwrap();
         std::fs::create_dir_all(&target).unwrap();
         std::fs::write(target.join("assistant.json"), "new").unwrap();
         migrate_from(&legacy, &target);
         assert_eq!(std::fs::read_to_string(target.join("recent_projects.json")).unwrap(), "[\"a\"]");
         assert!(!legacy.join("recent_projects.json").exists());
+        assert_eq!(std::fs::read_to_string(target.join("settings.json")).unwrap(), "{}");
         assert_eq!(std::fs::read_to_string(target.join("assistant.json")).unwrap(), "new");
         assert!(legacy.join("assistant.json").exists(), "the clash is left for the user");
+        assert_eq!(std::fs::read_to_string(legacy.join("library/keep.txt")).unwrap(), "assets");
         let _ = std::fs::remove_dir_all(&root);
     }
 

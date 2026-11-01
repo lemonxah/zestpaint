@@ -1,5 +1,5 @@
 //! Blendshapes for a document that has none yet: a project saved before
-//! ZestPaint kept them takes them from its model file, matched onto the
+//! ZestSurface kept them takes them from its model file, matched onto the
 //! existing meshes so the painting stays.
 
 use std::path::{Path, PathBuf};
@@ -68,7 +68,7 @@ impl AppState {
         for &i in &attached {
             self.renderer.update_vertices(i, &self.models[i].mesh.vertices);
         }
-        // Bones too: a project saved before ZestPaint kept them can be posed.
+        // Bones too: a project saved before ZestSurface kept them can be posed.
         let rigged = crate::scene::attach_skins(&mut self.models, &source);
         if !rigged.is_empty() {
             self.apply_pose();

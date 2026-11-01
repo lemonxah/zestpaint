@@ -525,9 +525,9 @@ mod tests {
                     assert!(!brushes.is_empty(), "{} produced no stamps", file.display());
                     for b in &brushes {
                         assert!(b.is_sane(), "{}: {}x{} vs {} bytes", file.display(), b.width, b.height, b.gray.len());
-                        // ZESTPAINT_BRUSH_DUMP=/some/dir writes the decoded
+                        // ZESTSURFACE_BRUSH_DUMP=/some/dir writes the decoded
                         // stamps out, for eyeballing a parser change.
-                        if let Ok(dump) = std::env::var("ZESTPAINT_BRUSH_DUMP") {
+                        if let Ok(dump) = std::env::var("ZESTSURFACE_BRUSH_DUMP") {
                             let dir = PathBuf::from(&dump);
                             let _ = std::fs::create_dir_all(&dir);
                             let safe = crate::library::sanitize(&b.name);

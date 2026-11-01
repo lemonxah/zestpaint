@@ -7,7 +7,7 @@ use serde::de::DeserializeOwned;
 
 /// Poly Haven's CDN 403s requests without a User-Agent, and it is simply polite
 /// to identify a bulk mirror to both hosts.
-pub const UA: &str = "zestpaint-matfetch/0.1 (CC0 asset mirror; +https://github.com/zestpaint)";
+pub const UA: &str = "zestsurface-matfetch/0.1 (CC0 asset mirror; +https://github.com/zestsurface)";
 
 const RETRIES: u32 = 4;
 

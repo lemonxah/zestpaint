@@ -6,7 +6,7 @@
 //!   allocator suballocates from 256 MiB blocks and never frees a block until
 //!   the allocator itself is dropped, so the driver saw the app's *peak* usage
 //!   for the rest of the session: releasing a hidden set's composites or the
-//!   textures of a resolution change made room inside ZestPaint but none for
+//!   textures of a resolution change made room inside ZestSurface but none for
 //!   the desktop (screenshot overlays and other apps' windows failed to
 //!   allocate). A dedicated allocation is freed the moment its image drops.
 //! - **Each image is registered under a [`Kind`]**, so the status bar can say

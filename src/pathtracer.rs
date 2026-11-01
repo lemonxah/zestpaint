@@ -1450,17 +1450,17 @@ mod tests {
         assert_eq!(pixel(&px, size, size / 2, size / 2)[3], 0, "no catcher: the floor and its shadow are gone");
     }
 
-    /// Real-file look check: ZESTPAINT_TEST_FBX=avatar.fbx and
-    /// ZESTPAINT_RENDER_OUT=dir render the avatar in each built-in pose
-    /// named in ZESTPAINT_RENDER_POSES (comma separated) in the default photo
+    /// Real-file look check: ZESTSURFACE_TEST_FBX=avatar.fbx and
+    /// ZESTSURFACE_RENDER_OUT=dir render the avatar in each built-in pose
+    /// named in ZESTSURFACE_RENDER_POSES (comma separated) in the default photo
     /// studio, and once on a transparent background, as PNGs.
     #[test]
     fn render_real_avatar() {
-        let (Ok(path), Ok(out)) = (std::env::var("ZESTPAINT_TEST_FBX"), std::env::var("ZESTPAINT_RENDER_OUT")) else {
-            eprintln!("ZESTPAINT_TEST_FBX / ZESTPAINT_RENDER_OUT not set; skipping");
+        let (Ok(path), Ok(out)) = (std::env::var("ZESTSURFACE_TEST_FBX"), std::env::var("ZESTSURFACE_RENDER_OUT")) else {
+            eprintln!("ZESTSURFACE_TEST_FBX / ZESTSURFACE_RENDER_OUT not set; skipping");
             return;
         };
-        let poses = std::env::var("ZESTPAINT_RENDER_POSES").unwrap_or_else(|_| "Contrapposto".into());
+        let poses = std::env::var("ZESTSURFACE_RENDER_POSES").unwrap_or_else(|_| "Contrapposto".into());
         let Some(gpu) = crate::environment::test_gpu::context() else { return };
         let mut models = crate::fbx_loader::load_with_progress(std::path::Path::new(&path), &|_, _, _| {}).unwrap();
         let skeleton = models.iter().find_map(|m| m.skin.as_ref()).unwrap().skeleton.clone();
@@ -1504,7 +1504,7 @@ mod tests {
         for (name, studio) in &mut runs {
             studio.seat = name.starts_with("Sitting");
         }
-        let anim = std::env::var("ZESTPAINT_RENDER_ANIM").ok().map(|p| crate::poses::load(std::path::Path::new(&p)).unwrap());
+        let anim = std::env::var("ZESTSURFACE_RENDER_ANIM").ok().map(|p| crate::poses::load(std::path::Path::new(&p)).unwrap());
         if let Some(source) = &anim {
             eprintln!("{}: {} body bones", source.file_name(), source.body_bones());
             runs.push(("Animation".into(), crate::studio::Studio::photo_default()));
