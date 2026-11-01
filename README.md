@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/brand/zestsurface-logo.svg" alt="ZestSurface — texture authoring software" width="640">
+  <img src="assets/brand/ZestSurface.jpg" alt="ZestSurface — texture authoring software" width="640">
 </p>
 
 # ZestSurface

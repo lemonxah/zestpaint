@@ -200,8 +200,8 @@ mod tests {
         }
     }
 
-    /// The About dialog and the README both show this file. resvg has to
-    /// accept it, or About falls back to a plain text title.
+    /// The vector lockup still has to parse. About and the README show the
+    /// master JPEG instead.
     #[test]
     fn logo_svg_rasterises() {
         let svg = include_str!("../assets/brand/zestsurface-logo.svg");

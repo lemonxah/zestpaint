@@ -322,7 +322,7 @@ struct UiControls {
     mask_overlay: bool,
     /// The app icon, for the menu bar; uploaded on first use.
     logo: Option<egui::TextureHandle>,
-    /// Full lockup for the About dialog, rasterised from the logo SVG once.
+    /// Full lockup for the About dialog, decoded from the brand JPEG once.
     about_logo: Option<egui::TextureHandle>,
     /// A piece picked in the viewport, for the texture-set list to scroll to.
     scroll_to_set: Option<usize>,

@@ -154,10 +154,8 @@ impl AppState {
         if self.ui.about_open {
             let mut open = true;
             if self.ui.about_logo.is_none() {
-                if let Ok(image) = crate::assistant::images::render_svg(
-                    include_str!("../../assets/brand/zestsurface-logo.svg"),
-                    960,
-                ) {
+                if let Ok(image) = image::load_from_memory(include_bytes!("../../assets/brand/ZestSurface.jpg")) {
+                    let image = image.to_rgba8();
                     let size = [image.width() as usize, image.height() as usize];
                     let color = egui::ColorImage::from_rgba_unmultiplied(size, image.as_raw());
                     self.ui.about_logo = Some(ctx.load_texture("about_logo", color, egui::TextureOptions::LINEAR));
